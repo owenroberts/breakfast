@@ -1,0 +1,11 @@
+body {
+	margin: 0px;
+	background-color: #000000;
+	overflow: hidden;
+}
+
+#lines {
+	position: fixed;
+	display:none;
+	z-index: 1;
+}
