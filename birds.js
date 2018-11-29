@@ -4,6 +4,13 @@ const width = window.innerWidth, height = window.innerHeight;
 const linesPlayer = new LinesPlayer(lines);
 let linesTexture; /* texture gets updated */
 
+const bgMusic = new Audio();
+bgMusic.src = 'audio/theme_1.mp3';
+bgMusic.loop = true;
+
+const tapSound = new Audio();
+tapSound.src = 'audio/bounce.mp3';
+
 const drawings = [
 	"drawings/end_2.json",
 	"drawings/feeder_4.json",
@@ -69,7 +76,7 @@ function init() {
 	// scene.add( testCube );
 
 	/* ground */
-	var s = 100;
+	var s = 150;
 	var d = s / 8;
 	var ground = new THREE.Geometry();
 	var geo = new THREE.BoxBufferGeometry( 1, 1, 1 );
@@ -138,7 +145,7 @@ function init() {
 	// let loader = new THREE.JSONLoader();
 	var loader = new THREE.GLTFLoader();
 	loader.load("models/nightjar.gltf", function( gltf ) {
-		console.log( gltf.animations );
+		// console.log( gltf.animations );
 		bird = gltf.scene.children[0];
 		bird.animations = gltf.animations;
 		bird.animations[1].duration = 1000 / 24 * 10 / 1000;
@@ -194,8 +201,8 @@ function animate() {
 
 	if (bird.isMoving) {
 		if (bird.targets.length > 0) {
-			const dist = bird.position.distanceTo(bird.targets[0])
-			if ( dist > 2) {
+			const dist = bird.position.distanceTo(bird.targets[0]);
+			if ( dist > 3.01) {
 				bird.position.x += bird.position.x > bird.targets[0].x ? -bird.speed : bird.speed;
 				bird.position.z += bird.position.z > bird.targets[0].z ? -bird.speed : bird.speed;
 				bird.position.y += bird.position.y < dist ? bird.speed / 2 : -bird.speed;
@@ -223,6 +230,15 @@ function animate() {
 /* events */
 function tap(event) {
 	// console.log(event);
+
+	if (bgMusic.paused) {
+		bgMusic.play();
+	}
+
+	tapSound.currentTime = Cool.random(tapSound.duration);
+	tapSound.play();
+	setTimeout(() => { tapSound.pause(); }, 800);
+
 	if (!bird.isMoving) {
 		bird.isMoving = true;
 		mixer.clipAction(bird.animations[0]).stop();
