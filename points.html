@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta charset="utf-8">
+	<title>breakfast birds</title>
+	<link href="birds.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+    <div id="container">
+    	<canvas id="lines"></canvas>
+	</div>
+	<script src="js/three.min.js"></script>
+	<script src="js/TrackballControls.js"></script>
+
+	<script>
+		var camera, scene, renderer;
+		var group;
+		var controls;
+		init();
+		animate();
+
+		function init() {
+			container = document.createElement( 'div' );
+			document.body.appendChild( container );
+
+			scene = new THREE.Scene();
+			scene.background = new THREE.Color( 0x222222 );
+
+			camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 2000 );
+			camera.position.set( 0, 400, 800 );
+			scene.add( camera );
+
+			controls = new THREE.TrackballControls( camera );
+			controls.rotateSpeed = 1.0;
+			controls.zoomSpeed = 1.2;
+			controls.panSpeed = 0.8;
+			controls.noZoom = false;
+			controls.noPan = false;
+			controls.staticMoving = true;
+			controls.dynamicDampingFactor = 0.3;
+			controls.keys = [ 65, 83, 68 ];
+			controls.addEventListener( 'change', render );
+
+	
+			group = new THREE.Group();
+			group.position.y = 50;
+			scene.add( group );
+
+			var californiaPts = [];
+
+			californiaPts.push( new THREE.Vector2( 182, 182 ) );
+			californiaPts.push( new THREE.Vector2( 181, 181 ) );
+			californiaPts.push( new THREE.Vector2( 180, 180 ) );
+			californiaPts.push( new THREE.Vector2( 178, 178 ) );
+			californiaPts.push( new THREE.Vector2( 175, 175 ) );
+			californiaPts.push( new THREE.Vector2( 171, 171 ) );
+			californiaPts.push( new THREE.Vector2( 166, 166 ) );
+			californiaPts.push( new THREE.Vector2( 165, 165 ) );
+			californiaPts.push( new THREE.Vector2( 170, 170 ) );
+			californiaPts.push( new THREE.Vector2( 178, 178 ) );
+			californiaPts.push( new THREE.Vector2( 189, 189 ) );
+			californiaPts.push( new THREE.Vector2( 199, 199 ) );
+			californiaPts.push( new THREE.Vector2( 194, 194 ) );
+			californiaPts.push( new THREE.Vector2( 189, 189 ) );
+			californiaPts.push( new THREE.Vector2( 188, 188 ) );
+			californiaPts.push( new THREE.Vector2( 190, 190 ) );
+
+			// californiaPts.push( new THREE.Vector2( 610, 320 ) );
+			// californiaPts.push( new THREE.Vector2( 450, 300 ) );
+			// californiaPts.push( new THREE.Vector2( 392, 392 ) );
+			// californiaPts.push( new THREE.Vector2( 266, 438 ) );
+			// californiaPts.push( new THREE.Vector2( 190, 570 ) );
+			// californiaPts.push( new THREE.Vector2( 190, 600 ) );
+			// californiaPts.push( new THREE.Vector2( 160, 620 ) );
+			// californiaPts.push( new THREE.Vector2( 160, 650 ) );
+			// californiaPts.push( new THREE.Vector2( 180, 640 ) );
+			// californiaPts.push( new THREE.Vector2( 165, 680 ) );
+			// californiaPts.push( new THREE.Vector2( 150, 670 ) );
+			// californiaPts.push( new THREE.Vector2( 90, 737 ) );
+			// californiaPts.push( new THREE.Vector2( 80, 795 ) );
+			// californiaPts.push( new THREE.Vector2( 50, 835 ) );
+			// californiaPts.push( new THREE.Vector2( 64, 870 ) );
+			// californiaPts.push( new THREE.Vector2( 60, 945 ) );
+			// californiaPts.push( new THREE.Vector2( 300, 945 ) );
+			// californiaPts.push( new THREE.Vector2( 300, 743 ) );
+			// californiaPts.push( new THREE.Vector2( 600, 473 ) );
+			// californiaPts.push( new THREE.Vector2( 626, 425 ) );
+			// californiaPts.push( new THREE.Vector2( 600, 370 ) );
+			// californiaPts.push( new THREE.Vector2( 610, 320 ) );
+			for ( var i = 0; i < californiaPts.length; i ++ ) 
+				californiaPts[ i ].multiplyScalar( 5 );
+			var californiaShape = new THREE.Shape( californiaPts );
+
+			californiaShape.autoClose = true;
+			var caliPoints = californiaShape.getPoints();
+			// console.log( caliPoints );
+			var geometryPoints = new THREE.BufferGeometry().setFromPoints( caliPoints );
+			// console.log(geometryPoints);
+
+			var caliLine = new THREE.Line( geometryPoints, new THREE.LineBasicMaterial( { color: 0x00ffff } ) );
+			caliLine.position.set( 0, 0, -25 );
+			// line.rotation.set( rx, ry, rz );
+			// line.scale.set( s, s, s );
+			group.add( caliLine );
+
+			// flat shape
+			var caliGeo = new THREE.ShapeBufferGeometry( californiaShape );
+			var caliMesh = new THREE.Mesh( caliGeo, new THREE.MeshPhongMaterial( { color: 0x00ffff, side: THREE.DoubleSide } ) );
+			// caliMesh.position.set( x, y, z - 125 );
+			// caliMesh.rotation.set( rx, ry, rz );
+			// caliMesh.scale.set( s, s, s );
+			group.add( caliMesh );
+
+			/* line mesh test */
+			fetch("drawings/face.json")
+				.then(response => { return response.json(); })
+				.then(json => {
+					// console.log(json);
+					// points
+					const shapes = [];
+					
+					for (let i = 0; i < json.d.length; i++) {
+						const d = json.d[i];
+						let pts = [];
+						if (d) {
+							for (let j = 0; j < d.length; j++) {
+								if (d[j] == 'end') {
+									// shapes.push( new THREE.Shape( pts ) );
+									const shape = new THREE.Shape(pts);
+									// shape.autoClose = true;
+									const points = shape.getPoints();
+									console.log(points);
+									const geoPoints = new THREE.BufferGeometry().setFromPoints( points );
+									const line = new THREE.Line( geoPoints, new THREE.LineBasicMaterial({ color: 0xff00ff, }) );
+									line.rotation.set( 0, 0, 45 );
+									group.add( line );
+
+									const geo = new THREE.ShapeBufferGeometry( shape );
+									const mesh = new THREE.Mesh( geo, new THREE.MeshPhongMaterial( { color: 0x00ffff, side: THREE.DoubleSide } ) );
+									// caliMesh.position.set( x, y, z - 125 );
+									// caliMesh.rotation.set( rx, ry, rz );
+									// caliMesh.scale.set( s, s, s );
+									group.add( mesh );
+
+									pts = []; // clear points
+								} else {
+									pts.push( new THREE.Vector2( d[j].x, d[j].x ) );
+									// pts[pts.length - 1].multiplyScalar( 0.25 );
+								}
+							}
+						}
+					}
+					// console.log(shapes);
+				});
+
+			renderer = new THREE.WebGLRenderer( { antialias: true } );
+			renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			container.appendChild( renderer.domElement );
+		}
+
+		function animate() {
+			requestAnimationFrame( animate );
+			controls.update();
+			render();
+		}
+		function render() {
+			// group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
+			renderer.render( scene, camera );
+		}
+
+	</script>
+
+
+	
+	
+	
+</body>
+</html>

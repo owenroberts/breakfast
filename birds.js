@@ -4,13 +4,29 @@ const width = window.innerWidth, height = window.innerHeight;
 const linesPlayer = new LinesPlayer(lines);
 let linesTexture; /* texture gets updated */
 
+const drawings = [
+	"drawings/end_2.json",
+	"drawings/feeder_4.json",
+	"drawings/feeder_close.json",
+	"drawings/feeder_pole.json",
+	"drawings/feeder_trees_0.json",
+	"drawings/feeder_trees_1.json",
+	"drawings/moon_fast.json",
+	"drawings/shadow.json",
+	"drawings/sunset_0.json",
+	"drawings/sunset_1.json",
+	"drawings/tree_close_0.json",
+	"drawings/tree_close_1.json",
+	"drawings/wind.json"
+];
+
 let camera, scene, renderer, controls;
 
 let clock, mixer;
 
 let bird;
-let eyeColor;
 
+let linesGroup;
 let testCube;
 
 // better than mobile check, includes ipad
@@ -44,7 +60,7 @@ function init() {
 	camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1100 );
 	controls = new THREE.DeviceOrientationControls( camera );
 	camera.position.z = 10;
-	camera.position.y = 30;
+	camera.position.y = 20;
 
 	/* test cube */
 	var geometry = new THREE.BoxBufferGeometry( 5, 5, 5 );
@@ -53,8 +69,8 @@ function init() {
 	// scene.add( testCube );
 
 	/* ground */
-	var s = 200;
-	var d = s / 16;
+	var s = 100;
+	var d = s / 8;
 	var ground = new THREE.Geometry();
 	var geo = new THREE.BoxBufferGeometry( 1, 1, 1 );
 	var mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -86,28 +102,26 @@ function init() {
 			*/
 			ground.faces.push( new THREE.Face3( i, i + 1, i + n ) );
 			ground.faceVertexUvs[0].push([
-				new THREE.Vector2(c/n, 1 - m/n), // 0,0 ~ 0,1
-				new THREE.Vector2(c/n, 1 - (m/n + 1/n)), // 0,1 ~ 0,0
-				new THREE.Vector2(c/n + 1/n, 1 - m/n) // 1,0 ~ 1,1
+				new THREE.Vector2(c/n,  m/n), // 0,0 ~ 0,1
+				new THREE.Vector2(c/n, (m/n + 1/n)), // 0,1 ~ 0,0
+				new THREE.Vector2(c/n + 1/n,  m/n) // 1,0 ~ 1,1
 			]);
 			ground.faces.push( new THREE.Face3( i + 1, i + n + 1, i + n, ) );
 			ground.faceVertexUvs[0].push([
-				new THREE.Vector2(c/n, 1 - (m/n + 1/n)), // 0,1 ~ 0,0
-				new THREE.Vector2(c/n + 1/n, 1 - (m/n + 1/n)), // 1,1 ~ 1,0
-				new THREE.Vector2(c/n + 1/n, 1 - m/n) // 1,0 ~ 1,1
+				new THREE.Vector2(c/n, (m/n + 1/n)), // 0,1 ~ 0,0
+				new THREE.Vector2(c/n + 1/n,  (m/n + 1/n)), // 1,1 ~ 1,0
+				new THREE.Vector2(c/n + 1/n, m/n) // 1,0 ~ 1,1
 			]);
 		}
 		ground.computeFaceNormals();
 	}
-	console.log(ground);
-
 
 	/* lines texture */
 	lines.width =  1024;
 	lines.height = 1024;
 	linesTexture = new THREE.Texture(lines);
 	const linesMaterial = new THREE.MeshBasicMaterial({ map: linesTexture, transparent: true, side: THREE.DoubleSide /*, color: 0xff00ff */});
-	linesPlayer.loadAnimation("drawings/feeder_2.json", () => { console.log('loaded texture')});
+	linesPlayer.loadAnimation( "drawings/feeder_2.json" );
 
 	var groundMesh = new THREE.Mesh( ground, linesMaterial );
 	
@@ -123,20 +137,46 @@ function init() {
 	mixer = new THREE.AnimationMixer( scene );
 	// let loader = new THREE.JSONLoader();
 	var loader = new THREE.GLTFLoader();
-	loader.load("models/nightjar_1.gltf", function( gltf ) {
-		// console.log(gltf);
+	loader.load("models/nightjar.gltf", function( gltf ) {
+		console.log( gltf.animations );
 		bird = gltf.scene.children[0];
+		bird.animations = gltf.animations;
+		bird.animations[1].duration = 1000 / 24 * 10 / 1000;
 		bird.position.y = 2;
+		bird.rotation.y = Math.PI * 1.25;
+		bird.isMoving = false;
+		bird.speed = 1.5;
+		bird.targets = [];
 		scene.add( bird );
 		bird.traverse(function(o) {
 			if (o.material) {
 				if (o.material.name == "Eye") {
-					eyeColor = o.material.color;
+					bird.eyeColor = o.material.color;
+					bird.originalColor = {
+						r: bird.eyeColor.r,
+						g: bird.eyeColor.g,
+						b: bird.eyeColor.b,
+					}
 				}
 			}
 		});
+
 		// eyeColor
-		mixer.clipAction(gltf.animations[2]).play();
+		function setEyeColor() {
+			bird.eyeColor.r = 1;
+			bird.eyeColor.g = 1;
+			bird.eyeColor.b = 1;
+			setTimeout(() => {
+				bird.eyeColor.r = bird.originalColor.r;
+				bird.eyeColor.g = bird.originalColor.g;
+				bird.eyeColor.b = bird.originalColor.b;
+				setTimeout( setEyeColor, Cool.random( 100, 5000 ) );
+			}, 100);
+		}
+		setTimeout( setEyeColor, Cool.random( 2000, 4000 ) );
+
+		// start animation			
+		mixer.clipAction(bird.animations[0]).play();
 		
 		animate();
 	});
@@ -149,15 +189,68 @@ function animate() {
 	mixer.update( clock.getDelta() );
 	linesTexture.needsUpdate = true;
 		
-	testCube.rotation.x += 0.005;
-	testCube.rotation.y += 0.01;
+	// testCube.rotation.x += 0.005;
+	// testCube.rotation.y += 0.01;
+
+	if (bird.isMoving) {
+		if (bird.targets.length > 0) {
+			const dist = bird.position.distanceTo(bird.targets[0])
+			if ( dist > 2) {
+				bird.position.x += bird.position.x > bird.targets[0].x ? -bird.speed : bird.speed;
+				bird.position.z += bird.position.z > bird.targets[0].z ? -bird.speed : bird.speed;
+				bird.position.y += bird.position.y < dist ? bird.speed / 2 : -bird.speed;
+			} else {
+				bird.targets.shift();
+				if (bird.targets.length > 0)
+					bird.lookAt( bird.targets[0] );
+			}
+		} else {
+			bird.isMoving = false;
+			mixer.clipAction(bird.animations[1]).stop();
+			mixer.clipAction(bird.animations[0]).play();
+			linesPlayer.loadAnimation( Cool.random(drawings) );
+		}
+	}
+
+	camera.position.x = bird.position.x;
+	camera.position.z = bird.position.z + 10;
 
 	// renderer.render(scene, camera);
 	effect.render( scene, camera );
-
-
 	controls.update();
 }
+
+/* events */
+function tap(event) {
+	// console.log(event);
+	if (!bird.isMoving) {
+		bird.isMoving = true;
+		mixer.clipAction(bird.animations[0]).stop();
+		mixer.clipAction(bird.animations[1]).play();
+		const off = 12;
+		const t1 = new THREE.Vector3(
+			Cool.random(bird.position.x - off, bird.position.x + off),
+			bird.position.y,
+			Cool.random(bird.position.z - off, bird.position.z + off)
+		);
+		const t2 = new THREE.Vector3(
+			Cool.random(t1.x - off, t1.x + off),
+			bird.position.y,
+			Cool.random(t1.z - off, t1.z + off)
+		);
+		const t3 = new THREE.Vector3(
+			Cool.random(bird.position.x - off, bird.position.x + off),
+			bird.position.y,
+			Cool.random(bird.position.z - off, bird.position.z + off)
+		);
+		bird.targets.push( t1 );
+		bird.targets.push( t2 );
+		bird.targets.push( t3 );
+		bird.lookAt( t1 );
+	}
+}
+
+window.addEventListener('touchstart', tap);
 
 /* boring */
 function onWindowResize() { 
@@ -181,7 +274,6 @@ function fullscreen() {
 		renderer.domElement.webkitRequestFullscreen();
 	}
 }
-
 function exitFullscreen() {
 	document.exitFullscreen = document.exitFullscreen || document.mozCancelFullScreen || document.webkitExitFullscreen || document.msExitFullscreen;
 	if (document.exitFullscreen)
