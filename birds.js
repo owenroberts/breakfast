@@ -1,7 +1,27 @@
+let state = 'intro'; /* sound, start, game */
+let useSound = false;
+let timer = performance.now();
+const interval = 1000 / 30;
+
+/* on boarding ui */
+const uiCanvas = document.getElementById('ui');
+const uiLines = new LinesPlayer( uiCanvas );
+uiLines.onPlayedOnce = () => {
+	uiLines.isPlaying = false;
+	uiLines.onPlayedOnce = null;
+	uiLines.loadAnimation( 'drawings/sound.json', () => {
+		uiLines.isPlaying = true;
+	});
+	state = 'sound';
+};
+uiLines.loadAnimation( 'drawings/title.json' );
+
+
 /* lines texture  */
 const lines = document.getElementById('lines');
-const width = window.innerWidth, height = window.innerHeight;
+let width = window.innerWidth, height = window.innerHeight;
 const linesPlayer = new LinesPlayer(lines);
+linesPlayer.isTexture = true;
 let linesTexture; /* texture gets updated */
 
 const bgMusic = new Audio();
@@ -12,19 +32,19 @@ const tapSound = new Audio();
 tapSound.src = 'audio/bounce.mp3';
 
 const drawings = [
-	"drawings/end_2.json",
-	"drawings/feeder_4.json",
-	"drawings/feeder_close.json",
-	"drawings/feeder_pole.json",
-	"drawings/feeder_trees_0.json",
-	"drawings/feeder_trees_1.json",
-	"drawings/moon_fast.json",
-	"drawings/shadow.json",
-	"drawings/sunset_0.json",
-	"drawings/sunset_1.json",
-	"drawings/tree_close_0.json",
-	"drawings/tree_close_1.json",
-	"drawings/wind.json"
+	"drawings/end_2.json", // fast
+	/*"drawings/feeder_4.json", */ // slow
+	"drawings/feeder_close.json", // medium
+	"drawings/feeder_pole.json", // fast
+	"drawings/feeder_trees_0.json", // fast
+	"drawings/feeder_trees_1.json", // fast
+	"drawings/moon_fast.json", // med
+	"drawings/shadow.json", // fast
+	"drawings/sunset_0.json", // fast
+	"drawings/sunset_1.json", // med
+	"drawings/tree_close_0.json", // fast
+	"drawings/tree_close_1.json", // fast
+	"drawings/wind.json" // fast
 ];
 
 let camera, scene, renderer, controls;
@@ -57,6 +77,7 @@ function init() {
 	renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize(width, height);
 	document.body.appendChild(renderer.domElement);
+	renderer.domElement.style.display = 'none';
 	renderer.gammaInput = true;
 	renderer.gammaOutput = true;
 	effect = new THREE.OutlineEffect( renderer, {
@@ -185,84 +206,109 @@ function init() {
 		// start animation			
 		mixer.clipAction(bird.animations[0]).play();
 		
-		animate();
+		// animate();
 	});
 
 	// fullscreen();
 }
 
 function animate() {
-	requestAnimationFrame(animate);
-	mixer.update( clock.getDelta() );
-	linesTexture.needsUpdate = true;
-		
-	// testCube.rotation.x += 0.005;
-	// testCube.rotation.y += 0.01;
+	requestAnimFrame(animate);
+	if (performance.now() > interval + timer) {
+		timer = performance.now();
+		linesPlayer.draw(); // one animate frame
+		mixer.update( clock.getDelta() );
+		linesTexture.needsUpdate = true;
+			
+		// testCube.rotation.x += 0.005;
+		// testCube.rotation.y += 0.01;
 
-	if (bird.isMoving) {
-		if (bird.targets.length > 0) {
-			const dist = bird.position.distanceTo(bird.targets[0]);
-			if ( dist > 3.01) {
-				bird.position.x += bird.position.x > bird.targets[0].x ? -bird.speed : bird.speed;
-				bird.position.z += bird.position.z > bird.targets[0].z ? -bird.speed : bird.speed;
-				bird.position.y += bird.position.y < dist ? bird.speed / 2 : -bird.speed;
+		if (bird.isMoving) {
+			if (bird.targets.length > 0) {
+				const dist = bird.position.distanceTo(bird.targets[0]);
+				if ( dist > 3.01) {
+					bird.position.x += bird.position.x > bird.targets[0].x ? -bird.speed : bird.speed;
+					bird.position.z += bird.position.z > bird.targets[0].z ? -bird.speed : bird.speed;
+					bird.position.y += bird.position.y < dist ? bird.speed / 2 : -bird.speed;
+				} else {
+					bird.targets.shift();
+					if (bird.targets.length > 0)
+						bird.lookAt( bird.targets[0] );
+				}
 			} else {
-				bird.targets.shift();
-				if (bird.targets.length > 0)
-					bird.lookAt( bird.targets[0] );
+				bird.isMoving = false;
+				mixer.clipAction(bird.animations[1]).stop();
+				mixer.clipAction(bird.animations[0]).play();
+				const dr = Cool.random( drawings );
+				// console.log(dr);
+				linesPlayer.loadAnimation( dr );
 			}
-		} else {
-			bird.isMoving = false;
-			mixer.clipAction(bird.animations[1]).stop();
-			mixer.clipAction(bird.animations[0]).play();
-			linesPlayer.loadAnimation( Cool.random(drawings) );
 		}
+
+		camera.position.x = bird.position.x;
+		camera.position.z = bird.position.z + 10;
+
+		// renderer.render(scene, camera);
+		effect.render( scene, camera );
+		controls.update();
 	}
-
-	camera.position.x = bird.position.x;
-	camera.position.z = bird.position.z + 10;
-
-	// renderer.render(scene, camera);
-	effect.render( scene, camera );
-	controls.update();
 }
 
 /* events */
 function tap(event) {
-	// console.log(event);
 
-	if (bgMusic.paused) {
-		bgMusic.play();
+	if (state == 'game') {
+		if (useSound) {
+			tapSound.currentTime = Cool.random(tapSound.duration);
+			tapSound.play();
+			setTimeout(() => { tapSound.pause(); }, 800);
+		}
+
+		if (!bird.isMoving) {
+			bird.isMoving = true;
+			mixer.clipAction(bird.animations[0]).stop();
+			mixer.clipAction(bird.animations[1]).play();
+			const off = 12;
+			const t1 = new THREE.Vector3(
+				Cool.random(bird.position.x - off, bird.position.x + off),
+				bird.position.y,
+				Cool.random(bird.position.z - off, bird.position.z + off)
+			);
+			const t2 = new THREE.Vector3(
+				Cool.random(t1.x - off, t1.x + off),
+				bird.position.y,
+				Cool.random(t1.z - off, t1.z + off)
+			);
+			const t3 = new THREE.Vector3(
+				Cool.random(t2.x - off, t2.x + off),
+				bird.position.y,
+				Cool.random(t2.z - off, t2.z + off)
+			);
+			bird.targets.push( t1 );
+			bird.targets.push( t2 );
+			bird.targets.push( t3 );
+			bird.lookAt( t1 );
+		}
 	}
 
-	tapSound.currentTime = Cool.random(tapSound.duration);
-	tapSound.play();
-	setTimeout(() => { tapSound.pause(); }, 800);
+	/* intro scenes */
 
-	if (!bird.isMoving) {
-		bird.isMoving = true;
-		mixer.clipAction(bird.animations[0]).stop();
-		mixer.clipAction(bird.animations[1]).play();
-		const off = 12;
-		const t1 = new THREE.Vector3(
-			Cool.random(bird.position.x - off, bird.position.x + off),
-			bird.position.y,
-			Cool.random(bird.position.z - off, bird.position.z + off)
-		);
-		const t2 = new THREE.Vector3(
-			Cool.random(t1.x - off, t1.x + off),
-			bird.position.y,
-			Cool.random(t1.z - off, t1.z + off)
-		);
-		const t3 = new THREE.Vector3(
-			Cool.random(bird.position.x - off, bird.position.x + off),
-			bird.position.y,
-			Cool.random(bird.position.z - off, bird.position.z + off)
-		);
-		bird.targets.push( t1 );
-		bird.targets.push( t2 );
-		bird.targets.push( t3 );
-		bird.lookAt( t1 );
+	if (state == 'start') {
+		uiCanvas.style.display = 'none';
+		uiLines.isPlaying = false;
+		state = 'game';
+		animate();
+		renderer.domElement.style.display = 'block';
+	}
+
+	if (state == 'sound') {
+		if (event.touches[0].clientY < height / 2) {
+			bgMusic.play();
+			useSound = true;
+		}
+		uiLines.loadAnimation( 'drawings/join.json', () => {
+			state = 'start';
+		});
 	}
 }
 
@@ -270,6 +316,7 @@ window.addEventListener('touchstart', tap);
 
 /* boring */
 function onWindowResize() { 
+	// console.log('resize');
 	width =  document.documentElement.clientWidth;
 	height =  document.documentElement.clientHeight;
 	camera.aspect = width / height;
