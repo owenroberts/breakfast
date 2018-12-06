@@ -1,0 +1,11 @@
+.DS_Store
+*.gsheet
+lines/
+doc/
+audio/
+comics/
+animations/
+.sass-cache/
+img/
+notes.txt
+drawings/

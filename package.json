@@ -1,0 +1,22 @@
+{
+	"name": "breakfast",
+	"version": "0.1.0",
+	"description:": "a bird game",
+	"main": "server.js",
+	"scripts": {
+		"test": "node server.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/owenroberts/breakfast"
+	},
+	"author": "owen ribbit",
+	"dependencies": {
+		"express": "^4.16.3",
+		"socket.io": "^2.1.1",
+		"serve-favicon": "^2.5.0"
+	},
+	"engines": {
+		"node": "6.11.5"
+	}
+}

@@ -1,0 +1,160 @@
+@import url(font.css);
+body {
+  font-family: Monaco, Helvetica, sans-serif;
+  margin: 0;
+  font-size: 11px;
+  -webkit-user-select: none;
+  user-select: none; }
+
+* {
+  box-sizing: border-box; }
+
+button:focus {
+  outline: none; }
+
+#splash {
+  font-size: 18px;
+  width: 600px;
+  margin: 2em auto; }
+
+#container {
+  /* 	min-width:720px; */
+  margin: 1em;
+  display: flex;
+  flex-wrap: wrap; }
+  #container #draw {
+    padding-right: 1em; }
+  #container #tools {
+    flex-grow: 1; }
+    #container #tools #panels {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      margin-top: 0.5em; }
+
+#canvas {
+  border: 1px solid gray; }
+  #canvas:active, #canvas:hover {
+    cursor: crosshair; }
+
+#nav #title {
+  border: none;
+  font-size: 1.5em;
+  display: block;
+  margin-bottom: 0.5em;
+  border-bottom: 1px solid transparent;
+  width: 100%; }
+  #nav #title:focus {
+    outline: none;
+    border-bottom: 1px solid black; }
+#nav .btn {
+  border: 1px solid gray;
+  padding: 0.25em;
+  margin: .25em 0;
+  border-radius: 3px;
+  cursor: pointer; }
+  #nav .btn:hover {
+    background: lightgray; }
+
+.panel-toggle {
+  display: inline-block;
+  position: absolute;
+  right: 0;
+  top: 0;
+  left: 0;
+  text-align: right;
+  padding: 0.1em 0.25em;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 100; }
+
+.menu-panel {
+  border-top: 1px solid lightgray;
+  border-right: 1px solid lightgray;
+  padding: 0.5em;
+  overflow: hidden;
+  position: relative;
+  height: 25px; }
+  .menu-panel .panel-title {
+    margin-bottom: 1em; }
+  .menu-panel .row {
+    margin-bottom: 2px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap; }
+    .menu-panel .row span {
+      vertical-align: top;
+      line-height: 2;
+      white-space: nowrap;
+      margin-right: 0.25em; }
+    .menu-panel .row input {
+      width: 100%; }
+    .menu-panel .row input.display {
+      width: 30px;
+      margin-left: 5px; }
+    .menu-panel .row .btn {
+      padding: 0 3px; }
+  .menu-panel .btn {
+    border: 1px solid gray;
+    padding: 0 0.25em;
+    margin: .25em 0;
+    cursor: pointer;
+    margin-right: 3px; }
+    .menu-panel .btn:hover {
+      background: lightgray; }
+  .menu-panel input {
+    /* max-width: 80px; */ }
+  .menu-panel *[title]:hover:after, .menu-panel .key-down:after {
+    content: attr(title);
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: lightblue;
+    border: 1px dashed blue;
+    border-radius: 2px;
+    padding: 1px 3px;
+    color: black; }
+
+#color-menu input, #canvas-menu input {
+  display: inline-block;
+  /* width:100px; */ }
+#color-menu #html-color, #color-menu #bkg-img, #color-menu #bkg-x, #color-menu #bkg-y, #color-menu #bkg-size, #canvas-menu #html-color, #canvas-menu #bkg-img, #canvas-menu #bkg-x, #canvas-menu #bkg-y, #canvas-menu #bkg-size {
+  width: 80px; }
+#color-menu #colorways, #canvas-menu #colorways {
+  margin-top: 0.5em; }
+  #color-menu #colorways button, #canvas-menu #colorways button {
+    padding: 2px;
+    border: 1px solid lightgray; }
+    #color-menu #colorways button:hover, #canvas-menu #colorways button:hover {
+      cursor: pointer; }
+
+.ui-color {
+  width: 100%;
+  height: 2em;
+  border: 1px solid gray;
+  margin-bottom: 1em; }
+
+#frames {
+  height: auto;
+  padding: 0.5em;
+  width: auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 24px);
+  grid-template-rows: max-content max-content; }
+  #frames p {
+    margin: 0;
+    grid-column: 1/ span 2; }
+  #frames .frame, #frames .plus, #frames #current {
+    display: inline-block;
+    background-color: lightgray;
+    margin-right: 1px;
+    margin-top: 1px;
+    padding: 0.5em; }
+    #frames .frame:hover, #frames .plus:hover, #frames #current:hover {
+      background-color: gray; }
+  #frames #current {
+    background-color: lightblue !important; }
+  #frames .copy {
+    background-color: pink !important; }
+
+/*# sourceMappingURL=lines.css.map */

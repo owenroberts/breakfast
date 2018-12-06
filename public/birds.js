@@ -9,12 +9,12 @@ const uiLines = new LinesPlayer( uiCanvas );
 uiLines.onPlayedOnce = () => {
 	uiLines.isPlaying = false;
 	uiLines.onPlayedOnce = null;
-	uiLines.loadAnimation( 'drawings/sound.json', () => {
+	uiLines.loadAnimation( '/public/drawings/sound.json', () => {
 		uiLines.isPlaying = true;
 	});
 	state = 'sound';
 };
-uiLines.loadAnimation( 'drawings/title.json' );
+uiLines.loadAnimation( '/public/drawings/title.json' );
 
 
 /* lines texture  */
@@ -25,26 +25,26 @@ linesPlayer.isTexture = true;
 let linesTexture; /* texture gets updated */
 
 const bgMusic = new Audio();
-bgMusic.src = 'audio/theme_1.mp3';
+bgMusic.src = '/public/audio/theme_1.mp3';
 bgMusic.loop = true;
 
 const tapSound = new Audio();
-tapSound.src = 'audio/bounce.mp3';
+tapSound.src = '/public/audio/bounce.mp3';
 
 const drawings = [
-	"drawings/end_2.json", // fast
-	/*"drawings/feeder_4.json", */ // slow
-	"drawings/feeder_close.json", // medium
-	"drawings/feeder_pole.json", // fast
-	"drawings/feeder_trees_0.json", // fast
-	"drawings/feeder_trees_1.json", // fast
-	"drawings/moon_fast.json", // med
-	"drawings/shadow.json", // fast
-	"drawings/sunset_0.json", // fast
-	"drawings/sunset_1.json", // med
-	"drawings/tree_close_0.json", // fast
-	"drawings/tree_close_1.json", // fast
-	"drawings/wind.json" // fast
+	"/public/drawings/end_2.json", // fast
+	/*"/public/drawings/feeder_4.json", */ // slow
+	"/public/drawings/feeder_close.json", // medium
+	"/public/drawings/feeder_pole.json", // fast
+	"/public/drawings/feeder_trees_0.json", // fast
+	"/public/drawings/feeder_trees_1.json", // fast
+	"/public/drawings/moon_fast.json", // med
+	"/public/drawings/shadow.json", // fast
+	"/public/drawings/sunset_0.json", // fast
+	"/public/drawings/sunset_1.json", // med
+	"/public/drawings/tree_close_0.json", // fast
+	"/public/drawings/tree_close_1.json", // fast
+	"/public/drawings/wind.json" // fast
 ];
 
 let camera, scene, renderer, controls;
@@ -52,6 +52,7 @@ let camera, scene, renderer, controls;
 let clock, mixer;
 
 let bird;
+const birdModel = Math.random() < 0.65 ? 'nightjar' : 'wren';
 
 let linesGroup;
 let testCube;
@@ -149,7 +150,7 @@ function init() {
 	lines.height = 1024;
 	linesTexture = new THREE.Texture(lines);
 	const linesMaterial = new THREE.MeshBasicMaterial({ map: linesTexture, transparent: true, side: THREE.DoubleSide /*, color: 0xff00ff */});
-	linesPlayer.loadAnimation( "drawings/feeder_2.json" );
+	linesPlayer.loadAnimation( "/public/drawings/feeder_2.json" );
 
 	var groundMesh = new THREE.Mesh( ground, linesMaterial );
 	
@@ -165,13 +166,19 @@ function init() {
 	mixer = new THREE.AnimationMixer( scene );
 	// let loader = new THREE.JSONLoader();
 	var loader = new THREE.GLTFLoader();
-	loader.load("models/nightjar.gltf", function( gltf ) {
-		// console.log( gltf.animations );
+	loader.load(`/public/models/${birdModel}.gltf`, function( gltf ) {
+		// console.log( gltf );
+
 		bird = gltf.scene.children[0];
 		bird.animations = gltf.animations;
+		const dur = birdModel == 'nightjar' ? 10 : 20;
 		bird.animations[1].duration = 1000 / 24 * 10 / 1000;
 		bird.position.y = 2;
+		
+		bird.rotation.x = 0;
 		bird.rotation.y = Math.PI * 1.25;
+		bird.rotation.z = 0;
+
 		bird.isMoving = false;
 		bird.speed = 1.5;
 		bird.targets = [];
@@ -255,7 +262,9 @@ function animate() {
 }
 
 /* events */
-function tap(event) {
+function tapStart(event) {
+
+	lastTouch = event.touches[0];
 
 	if (state == 'game') {
 		if (useSound) {
@@ -290,9 +299,11 @@ function tap(event) {
 			bird.lookAt( t1 );
 		}
 	}
+}
 
+function tapEnd(event) {
+	
 	/* intro scenes */
-
 	if (state == 'start') {
 		uiCanvas.style.display = 'none';
 		uiLines.isPlaying = false;
@@ -302,17 +313,19 @@ function tap(event) {
 	}
 
 	if (state == 'sound') {
-		if (event.touches[0].clientY < height / 2) {
+		if (lastTouch.clientY < height / 2) {
 			bgMusic.play();
 			useSound = true;
 		}
-		uiLines.loadAnimation( 'drawings/join.json', () => {
+		uiLines.loadAnimation( '/public/drawings/join.json', () => {
 			state = 'start';
 		});
 	}
 }
 
-window.addEventListener('touchstart', tap);
+let lastTouch;
+window.addEventListener('touchstart', tapStart);
+window.addEventListener('touchend', tapEnd);
 
 /* boring */
 function onWindowResize() { 

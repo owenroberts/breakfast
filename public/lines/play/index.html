@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+	<title>lines</title>
+	<meta charset="utf-8" />
+	<link rel="shortcut icon" href="../favicon.ico" type="image/x-icon">
+	<link rel="icon" href="favicon.ico" type="image/x-icon">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+</head>
+<body>
+	<h1>Play example</h1>
+	<p><a href="../">Back</a></p>
+	<canvas id="lines" data-src="_ex.json"></canvas>
+	<!-- data src thing is for multiple instances 
+		but this is not really working -->
+	<script type="text/javascript" src="../lib/cool/cool.js"></script>
+	<script type="text/javascript" src="play.js"></script>
+	<script type="text/javascript">
+		window.onload = function() {
+			// loadAnimation(document.querySelector('.draw').dataset.src); // fallback
+			const p = new LinesPlayer(document.getElementById("lines"), "../asdf.json");
+		}
+	</script>
+</body>
+</html>
