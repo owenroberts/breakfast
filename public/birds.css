@@ -6,10 +6,27 @@ body {
 
 #lines {
 	position: fixed;
-	display:none;
+	display: none;
 	z-index: 1;
 }
 
+#draw {
+	display: none;
+	position: fixed;
+	z-index: 2;
+	top: 80px;
+	left: 0;
+	border-top: 1px solid #264F72;
+	border-bottom: 1px solid #264F72;
+}
+
 #ui {
+	position: fixed;
+	z-index: 0;
+	top: 0;
+	left: 0;
+}
+
+.message {
 	
 }

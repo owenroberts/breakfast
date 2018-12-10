@@ -9,7 +9,7 @@ let timer = performance.now();
 const interval = 1000 / 30;
 
 /* on boarding ui */
-const uiCanvas = document.getElementById('ui');
+const uiCanvas = document.getElementById( 'ui' );
 const uiLines = new LinesPlayer( uiCanvas );
 uiLines.onPlayedOnce = () => {
 	uiLines.isPlaying = false;
@@ -20,6 +20,10 @@ uiLines.onPlayedOnce = () => {
 	state = 'sound';
 };
 uiLines.loadAnimation( '/public/drawings/title.json' );
+
+/* drawing canvas */
+const drawCanvas = document.getElementById( 'draw' );
+const drawLines = new LinesDraw( drawCanvas, '264F72' );
 
 
 /* lines texture  */
@@ -359,10 +363,37 @@ function tapEnd(event) {
 			bgMusic.play();
 			useSound = true;
 		}
-		uiLines.loadAnimation( '/public/drawings/join.json', () => {
-			state = 'start';
+		uiLines.loadAnimation( '/public/drawings/draw.json', () => {
+			state = 'draw-instructions';
 		});
 	}
+
+	if (state == 'draw-instructions') {
+		uiLines.loadAnimation( '/public/drawings/save.json', () => {
+			state = 'draw';
+			drawCanvas.style.display = 'block';
+			drawLines.start();
+		});
+	}
+
+	if (state == 'draw') {
+		if (lastTouch.clientY < 50) {
+			const drawing = drawLines.save();
+			const messageCanvas = document.createElement( 'canvas' );
+			messageCanvas.classList.add('message');
+			document.body.appendChild( messageCanvas );
+			const messageLines = new LinesPlayer( messageCanvas );
+			messageLines.loadJSON( drawing );
+			console.log( messageLines );
+			uiLines.loadAnimation( '/public/drawings/join.json', () => {
+				state = 'start';
+				drawCanvas.style.display = 'none';
+				drawLines.end();
+			});
+		}
+	}
+
+
 }
 
 let lastTouch;

@@ -159,6 +159,25 @@ function LinesPlayer(canvas, src, lps, callback, isTexture) {
 			});
 	};
 
+	this.loadJSON = function(json, callback) {
+		const data = JSON.parse(json);
+		this.frames = data.f;
+		this.drawings = data.d;
+		this.intervalRatio = this.lineInterval / (1000 / data.fps);
+		this.currentFrame = this.currentFrameCounter = 0;
+		this.width = this.canvas.width = data.w;
+		this.height = this.canvas.height = data.h;
+		this.ctxStrokeColor = undefined; // note setting canvas width resets the color
+		this.ctx.miterLimit = 1;
+		if (callback) 
+			callback();
+		if (!this.isTexture) {
+			requestAnimFrame(this.draw.bind(this));
+			this.sizeCanvas();
+			window.addEventListener('resize', this.sizeCanvas.bind(this), false);
+		}
+	};
+
 	if (src) 
 		this.loadAnimation(src, callback);
 }

@@ -21,7 +21,6 @@ function DrawEvents(defaults) {
 	this.mouseTimer = performance.now();  //  independent of draw timer 
 	this.mouseInterval = 30;
 
-	
 	this.outSideCanvas = function(ev) {
 		if (ev.toElement != Lines.canvas.canvas) { 
 			if (self.isDrawing) 
