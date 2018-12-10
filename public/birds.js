@@ -1,3 +1,8 @@
+const socket = io();
+
+Birds = {};
+let userId;
+
 let state = 'intro'; /* sound, start, game */
 let useSound = false;
 let timer = performance.now();
@@ -48,14 +53,8 @@ const drawings = [
 ];
 
 let camera, scene, renderer, controls;
-
 let clock, mixer;
 
-let bird;
-const birdModel = Math.random() < 0.65 ? 'nightjar' : 'wren';
-
-let linesGroup;
-let testCube;
 
 // better than mobile check, includes ipad
 function onMotion(ev) {
@@ -90,12 +89,6 @@ function init() {
 	controls = new THREE.DeviceOrientationControls( camera );
 	camera.position.z = 10;
 	camera.position.y = 20;
-
-	/* test cube */
-	var geometry = new THREE.BoxBufferGeometry( 5, 5, 5 );
-	var material = new THREE.MeshBasicMaterial(  );
-	testCube = new THREE.Mesh( geometry, material );
-	// scene.add( testCube );
 
 	/* ground */
 	var s = 150;
@@ -158,39 +151,48 @@ function init() {
 	// groundMesh.add( vertexNormalsHelper );
 	scene.add( groundMesh );
 
-	const testPlane = new THREE.Mesh( new THREE.PlaneBufferGeometry( 100, 100, 4, 4 ), linesMaterial );
-	testPlane.position.set( 0, 0, -20 );
-	// scene.add( textPlane );
-
-	/* blender */
+	// one animation mixer
 	mixer = new THREE.AnimationMixer( scene );
-	// let loader = new THREE.JSONLoader();
-	var loader = new THREE.GLTFLoader();
-	loader.load(`/public/models/${birdModel}.gltf`, function( gltf ) {
+
+	socket.emit( 'loaded' );
+	// fullscreen();
+}
+
+function addBird( id, model, position ) {
+	// console.log( 'add bird', id );
+	Birds[id] = {};
+	Birds[id].targets = [];
+	Birds[id].isMoving = false;
+	Birds[id].speed = 1.5;
+	
+	const loader = new THREE.GLTFLoader();
+	loader.load(`/public/models/${model}.gltf`, function( gltf ) {
 		// console.log( gltf );
 
-		bird = gltf.scene.children[0];
-		bird.animations = gltf.animations;
-		const dur = birdModel == 'nightjar' ? 10 : 20;
-		bird.animations[1].duration = 1000 / 24 * 10 / 1000;
-		bird.position.y = 2;
+		Birds[id].bird = gltf.scene.children[0];
+		Birds[id].animations = gltf.animations;
+		const dur = model == 'nightjar' ? 10 : 20;
+		Birds[id].animations[1].duration = 1000 / 24 * dur / 1000;
+		Birds[id].bird.position.y = position.y;
+		Birds[id].bird.position.x = position.x;
+		Birds[id].bird.position.z = position.z;
 		
-		bird.rotation.x = 0;
-		bird.rotation.y = Math.PI * 1.25;
-		bird.rotation.z = 0;
-
-		bird.isMoving = false;
-		bird.speed = 1.5;
-		bird.targets = [];
-		scene.add( bird );
-		bird.traverse(function(o) {
-			if (o.material) {
-				if (o.material.name == "Eye") {
-					bird.eyeColor = o.material.color;
-					bird.originalColor = {
-						r: bird.eyeColor.r,
-						g: bird.eyeColor.g,
-						b: bird.eyeColor.b,
+		Birds[id].bird.rotation.x = 0;
+		Birds[id].bird.rotation.y = Math.PI * 1.25;
+		Birds[id].bird.rotation.z = 0;
+		
+		
+		Birds[id].bird.targets = [];
+		scene.add( Birds[id].bird );
+		
+		Birds[id].bird.traverse( function( o ) {
+			if ( o.material ) {
+				if ( o.material.name == "Eye" ) {
+					Birds[id].bird.eyeColor = o.material.color;
+					Birds[id].bird.originalColor = {
+						r: Birds[id].bird.eyeColor.r,
+						g: Birds[id].bird.eyeColor.g,
+						b: Birds[id].bird.eyeColor.b,
 					}
 				}
 			}
@@ -198,25 +200,38 @@ function init() {
 
 		// eyeColor
 		function setEyeColor() {
-			bird.eyeColor.r = 1;
-			bird.eyeColor.g = 1;
-			bird.eyeColor.b = 1;
-			setTimeout(() => {
-				bird.eyeColor.r = bird.originalColor.r;
-				bird.eyeColor.g = bird.originalColor.g;
-				bird.eyeColor.b = bird.originalColor.b;
-				setTimeout( setEyeColor, Cool.random( 100, 5000 ) );
+			Birds[id].bird.eyeColor.r = 1;
+			Birds[id].bird.eyeColor.g = 1;
+			Birds[id].bird.eyeColor.b = 1;
+			Birds[id].eyeAnimation = setTimeout(() => {
+				Birds[id].bird.eyeColor.r = Birds[id].bird.originalColor.r;
+				Birds[id].bird.eyeColor.g = Birds[id].bird.originalColor.g;
+				Birds[id].bird.eyeColor.b = Birds[id].bird.originalColor.b;
+				Birds[id].eyeAnimation = setTimeout( setEyeColor, Cool.random( 100, 5000 ) );
 			}, 100);
 		}
-		setTimeout( setEyeColor, Cool.random( 2000, 4000 ) );
+		Birds[id].eyeAnimation = setTimeout( setEyeColor, Cool.random( 2000, 4000 ) );
 
-		// start animation			
-		mixer.clipAction(bird.animations[0]).play();
-		
-		// animate();
+		// start animation
+		mixer.clipAction( Birds[id].animations[0], Birds[id].bird ).play();
 	});
+}
 
-	// fullscreen();
+function update(data) {
+	for (const id in data) {
+		for (let i = 0; i < data[id].targets.length; i++) {
+			Birds[id].targets.push( new THREE.Vector3( 
+				data[id].targets[i].x,
+				data[id].targets[i].y,
+				data[id].targets[i].z
+			) );
+		}
+		// if there's an update, birds has to fly and look at new target
+		Birds[id].bird.lookAt( Birds[id].targets[0] );
+		Birds[id].isMoving = true;
+		mixer.clipAction( Birds[id].animations[0], Birds[id].bird ).stop();
+		mixer.clipAction( Birds[id].animations[1], Birds[id].bird ).play();
+	}
 }
 
 function animate() {
@@ -224,42 +239,71 @@ function animate() {
 	if (performance.now() > interval + timer) {
 		timer = performance.now();
 		linesPlayer.draw(); // one animate frame
-		mixer.update( clock.getDelta() );
+		
 		linesTexture.needsUpdate = true;
-			
-		// testCube.rotation.x += 0.005;
-		// testCube.rotation.y += 0.01;
+		mixer.update( clock.getDelta() );
 
-		if (bird.isMoving) {
-			if (bird.targets.length > 0) {
-				const dist = bird.position.distanceTo(bird.targets[0]);
-				if ( dist > 3.01) {
-					bird.position.x += bird.position.x > bird.targets[0].x ? -bird.speed : bird.speed;
-					bird.position.z += bird.position.z > bird.targets[0].z ? -bird.speed : bird.speed;
-					bird.position.y += bird.position.y < dist ? bird.speed / 2 : -bird.speed;
+		for (const k in Birds) {
+			const b = Birds[k];
+			
+			if (b.isMoving) {
+				if (b.targets.length > 0) {
+					console.log( b.targets.length );
+					const dist = b.bird.position.distanceTo( b.targets[0] );
+					if ( dist > 3.01 ) {
+						b.bird.position.x += b.bird.position.x > b.targets[0].x ? -b.speed : b.speed;
+						b.bird.position.z += b.bird.position.z > b.targets[0].z ? -b.speed : b.speed;
+						b.bird.position.y += b.bird.position.y < dist ? b.speed / 2 : -b.speed;
+					} else {
+						b.targets.shift();
+						if (b.targets.length > 0)
+							b.bird.lookAt( b.targets[0] );
+					}
 				} else {
-					bird.targets.shift();
-					if (bird.targets.length > 0)
-						bird.lookAt( bird.targets[0] );
+					b.isMoving = false;
+					mixer.clipAction( b.animations[1], b.bird ).stop();
+					mixer.clipAction( b.animations[0], b.bird ).play();
+					
+					/* when to change animations */
+					if (k == userId) {
+						const dr = Cool.random( drawings );
+						linesPlayer.loadAnimation( dr );
+					}
 				}
-			} else {
-				bird.isMoving = false;
-				mixer.clipAction(bird.animations[1]).stop();
-				mixer.clipAction(bird.animations[0]).play();
-				const dr = Cool.random( drawings );
-				// console.log(dr);
-				linesPlayer.loadAnimation( dr );
 			}
 		}
 
-		camera.position.x = bird.position.x;
-		camera.position.z = bird.position.z + 10;
+		camera.position.x = Birds[userId].bird.position.x;
+		camera.position.z = Birds[userId].bird.position.z + 5;
 
 		// renderer.render(scene, camera);
 		effect.render( scene, camera );
 		controls.update();
 	}
 }
+
+socket.on('add bird', bird => {
+	addBird( bird.id, bird.model, bird.position );
+});
+
+socket.on('remove bird', id => {
+	scene.remove( Birds[id].bird );
+	clearTimeout( Birds[id].eyeAnimation );
+	delete Birds[id];
+});
+
+socket.on('init', (birds, id) => {
+	userId = id;
+	for (const k in birds) {
+		if (k != id) {
+			addBird( birds[k].id, birds[k].model, birds[k].position );
+		}
+	}
+});
+
+socket.on('update', data => {
+	update(data);
+});
 
 /* events */
 function tapStart(event) {
@@ -273,10 +317,10 @@ function tapStart(event) {
 			setTimeout(() => { tapSound.pause(); }, 800);
 		}
 
-		if (!bird.isMoving) {
-			bird.isMoving = true;
-			mixer.clipAction(bird.animations[0]).stop();
-			mixer.clipAction(bird.animations[1]).play();
+		const bird = Birds[userId].bird;
+
+		if (!Birds[userId].isMoving) {
+
 			const off = 12;
 			const t1 = new THREE.Vector3(
 				Cool.random(bird.position.x - off, bird.position.x + off),
@@ -293,10 +337,8 @@ function tapStart(event) {
 				bird.position.y,
 				Cool.random(t2.z - off, t2.z + off)
 			);
-			bird.targets.push( t1 );
-			bird.targets.push( t2 );
-			bird.targets.push( t3 );
-			bird.lookAt( t1 );
+		
+			socket.emit( 'tap', [ t1, t2, t3 ] );
 		}
 	}
 }
