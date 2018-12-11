@@ -144,7 +144,7 @@ function init() {
 	/* lines texture */
 	lines.width =  1024;
 	lines.height = 1024;
-	linesTexture = new THREE.Texture(lines);
+	linesTexture = new THREE.Texture( lines );
 	const linesMaterial = new THREE.MeshBasicMaterial({ map: linesTexture, transparent: true, side: THREE.DoubleSide /*, color: 0xff00ff */});
 	linesPlayer.loadAnimation( "/public/drawings/feeder_2.json" );
 
@@ -161,7 +161,7 @@ function init() {
 	// fullscreen();
 }
 
-function addBird( id, model, position ) {
+function addBird( id, model, position, drawing ) {
 	// console.log( 'add bird', id );
 	Birds[id] = {};
 	Birds[id].targets = [];
@@ -183,6 +183,27 @@ function addBird( id, model, position ) {
 		Birds[id].bird.rotation.x = 0;
 		Birds[id].bird.rotation.y = Math.PI * 1.25;
 		Birds[id].bird.rotation.z = 0;
+
+		const messageCanvas = document.createElement( 'canvas' );
+		messageCanvas.classList.add( 'message' );
+
+		document.body.appendChild( messageCanvas );
+		const messageLines = new LinesPlayer( messageCanvas );
+		messageLines.loadJSON( drawing );
+		messageCanvas.width = messageCanvas.height = 256;
+
+		/* lines texture */
+		Birds[id].messageTexture = new THREE.Texture( messageCanvas );
+		const mat = new THREE.MeshBasicMaterial({ map: Birds[id].messageTexture, transparent: true, side: THREE.DoubleSide , color: 0xff00ff });
+
+		const geo = new THREE.PlaneGeometry( 10, 10, 1 );
+		Birds[id].message = new THREE.Mesh( geo, mat );
+		Birds[id].message.position = Birds[id].bird.position;
+		Birds[id].message.position.y = 8;
+		Birds[id].message.parent = Birds[id].bird;
+
+		Birds[id].bird.add( Birds[id].message );
+		Birds[id].message.lookAt( camera.position );
 		
 		
 		Birds[id].bird.targets = [];
@@ -248,10 +269,11 @@ function animate() {
 
 		for (const k in Birds) {
 			const b = Birds[k];
-			
+			b.message.lookAt( camera.position );
+			b.messageTexture.needsUpdate = true;
+
 			if (b.isMoving) {
 				if (b.targets.length > 0) {
-					console.log( b.targets.length );
 					const dist = b.bird.position.distanceTo( b.targets[0] );
 					if ( dist > 3.01 ) {
 						b.bird.position.x += b.bird.position.x > b.targets[0].x ? -b.speed : b.speed;
@@ -286,7 +308,7 @@ function animate() {
 }
 
 socket.on('add bird', bird => {
-	addBird( bird.id, bird.model, bird.position );
+	addBird( bird.id, bird.model, bird.position, bird.drawing );
 });
 
 socket.on('remove bird', id => {
@@ -378,12 +400,8 @@ function tapEnd(event) {
 	if (state == 'draw') {
 		if (lastTouch.clientY < 50) {
 			const drawing = drawLines.save();
-			const messageCanvas = document.createElement( 'canvas' );
-			messageCanvas.classList.add('message');
-			document.body.appendChild( messageCanvas );
-			const messageLines = new LinesPlayer( messageCanvas );
-			messageLines.loadJSON( drawing );
-			console.log( messageLines );
+			
+			socket.emit( 'add drawing', drawing );
 			uiLines.loadAnimation( '/public/drawings/join.json', () => {
 				state = 'start';
 				drawCanvas.style.display = 'none';

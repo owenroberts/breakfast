@@ -81,11 +81,15 @@ io.on('connection', socket => {
 	}
 	birds[socket.id] = new Bird(socket);
 	
-	
 	socket.on('loaded', () => {
 		socket.emit('init', birds, socket.id);
-		io.sockets.emit('add bird', birds[socket.id]);
+		// io.sockets.emit('add bird', birds[socket.id]);
 	});
+
+	socket.on('add drawing', drawing => {
+		birds[socket.id].drawing = drawing;
+		io.sockets.emit('add bird', birds[socket.id]);
+	})
 
 	socket.on('disconnect', () => {
 		console.log('exit', socket.id);
