@@ -25,7 +25,6 @@ uiLines.loadAnimation( '/public/drawings/title.json' );
 const drawCanvas = document.getElementById( 'draw' );
 const drawLines = new LinesDraw( drawCanvas, '264F72' );
 
-
 /* lines texture  */
 const lines = document.getElementById('lines');
 let width = window.innerWidth, height = window.innerHeight;
