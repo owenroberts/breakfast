@@ -40,6 +40,7 @@ function random(min, max) {
 class Bird {
 	constructor(socket) {
 		this.id = socket.id;
+		this.needsUpdate = false;
 		this.position = { 
 			x: 0, 
 			y: 2, 
@@ -49,32 +50,45 @@ class Bird {
 		this.model = Math.random() < 0.65 ? 'nightjar' : 'wren';
 
 		socket.on('tap', targets => {
+			this.needsUpdate = true;
 			this.targets = targets;
+		});
+		socket.on('done moving', () => {
+			// set new position
+			if (this.targets.length > 0) {
+				this.position.x = this.targets[2].x;
+				this.position.z = this.targets[2].z;
+				this.targets = []; // clear targets
+			}
 		});
 	}
 }
 
-function update() {
+function init() {
+	// add birds with drawings 
+	const data = {};
+	for (const id in birds) {
+		if (birds[id].drawing)
+			data[id] = birds[id];
+	}
+	return data;
+}
 
+function update() {
 	// add birds with new targets 
 	const data = {};
 	for (const id in birds) {
-		if (birds[id].targets.length > 0) {
+		if (birds[id].needsUpdate) {
 			data[id] = birds[id];
+			birds[id].needsUpdate = false;
 		}
 	}
 	if (Object.keys(data).length > 0)
 		io.sockets.emit('update', data);
-	
-	// clear targets 
-	for (const id in birds) {
-		birds[id].targets = [];
-	}
 }
 
-
 io.on('connection', socket => {
-	console.log('new bird', socket.id);
+	// console.log('new bird', socket.id);
 
 	if (Object.keys(birds).length == 0) {
 		updateInterval = setInterval(update, 1000 / 30);
@@ -82,17 +96,18 @@ io.on('connection', socket => {
 	birds[socket.id] = new Bird(socket);
 	
 	socket.on('loaded', () => {
-		socket.emit('init', birds, socket.id);
+		socket.emit('init', init(), socket.id);
 		// io.sockets.emit('add bird', birds[socket.id]);
 	});
 
 	socket.on('add drawing', drawing => {
+		// console.log( 'drawing', socket.id );
 		birds[socket.id].drawing = drawing;
 		io.sockets.emit('add bird', birds[socket.id]);
-	})
+	});
 
 	socket.on('disconnect', () => {
-		console.log('exit', socket.id);
+		// console.log('exit', socket.id);
 		if (birds[socket.id]) {
 			io.sockets.emit('remove bird', socket.id);
 			delete birds[socket.id];
@@ -100,7 +115,14 @@ io.on('connection', socket => {
 		if (Object.keys(birds).length == 0) {
 			clearInterval(updateInterval);
 		}
-	})
+	});
 
+	/* debug */
+	socket.on('send-eval', msg => {
+		if (!DEBUG)
+			return;
+		const res = eval(msg);
+		socket.emit('get-eval', res);
+	});
 });
 

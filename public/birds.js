@@ -57,7 +57,7 @@ const drawings = [
 
 let camera, scene, renderer, controls;
 let clock, mixer;
-
+let messageScene;
 
 // better than mobile check, includes ipad
 function onMotion(ev) {
@@ -74,9 +74,11 @@ init();
 function init() {
 	clock = new THREE.Clock();
 	scene = new THREE.Scene();
+	messageScene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xffffff );
 
 	renderer = new THREE.WebGLRenderer();
+	renderer.autoClear = false;
 	renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize(width, height);
 	document.body.appendChild(renderer.domElement);
@@ -91,7 +93,7 @@ function init() {
 	camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1100 );
 	controls = new THREE.DeviceOrientationControls( camera );
 	camera.position.z = 10;
-	camera.position.y = 20;
+	camera.position.y = 50;
 
 	/* ground */
 	var s = 150;
@@ -169,6 +171,8 @@ function addBird( id, model, position, drawing ) {
 	Birds[id].speed = 1.5;
 	
 	const loader = new THREE.GLTFLoader();
+	// console.log( userId, id, drawing );
+	console.log( `/public/models/${model}.gltf` );
 	loader.load(`/public/models/${model}.gltf`, function( gltf ) {
 		// console.log( gltf );
 
@@ -184,27 +188,27 @@ function addBird( id, model, position, drawing ) {
 		Birds[id].bird.rotation.y = Math.PI * 1.25;
 		Birds[id].bird.rotation.z = 0;
 
+		/* message texture */
 		const messageCanvas = document.createElement( 'canvas' );
 		messageCanvas.classList.add( 'message' );
 
 		document.body.appendChild( messageCanvas );
 		const messageLines = new LinesPlayer( messageCanvas );
-		messageLines.loadJSON( drawing );
+		messageLines.isTexture = true;
+		// messageLines.loadJSON( JSON.parse( drawing ) );
 		messageCanvas.width = messageCanvas.height = 256;
-
-		/* lines texture */
+		
 		Birds[id].messageTexture = new THREE.Texture( messageCanvas );
-		const mat = new THREE.MeshBasicMaterial({ map: Birds[id].messageTexture, transparent: true, side: THREE.DoubleSide , color: 0xff00ff });
+		const mat = new THREE.MeshBasicMaterial({ map: Birds[id].messageTexture, transparent: true, side: THREE.DoubleSide });
 
 		const geo = new THREE.PlaneGeometry( 10, 10, 1 );
 		Birds[id].message = new THREE.Mesh( geo, mat );
 		Birds[id].message.position = Birds[id].bird.position;
 		Birds[id].message.position.y = 8;
-		Birds[id].message.parent = Birds[id].bird;
+		// Birds[id].message.parent = Birds[id].bird;
 
-		Birds[id].bird.add( Birds[id].message );
+		messageScene.add( Birds[id].message );
 		Birds[id].message.lookAt( camera.position );
-		
 		
 		Birds[id].bird.targets = [];
 		scene.add( Birds[id].bird );
@@ -241,7 +245,7 @@ function addBird( id, model, position, drawing ) {
 	});
 }
 
-function update(data) {
+function update( data ) {
 	for (const id in data) {
 		for (let i = 0; i < data[id].targets.length; i++) {
 			Birds[id].targets.push( new THREE.Vector3( 
@@ -269,9 +273,6 @@ function animate() {
 
 		for (const k in Birds) {
 			const b = Birds[k];
-			b.message.lookAt( camera.position );
-			b.messageTexture.needsUpdate = true;
-
 			if (b.isMoving) {
 				if (b.targets.length > 0) {
 					const dist = b.bird.position.distanceTo( b.targets[0] );
@@ -288,6 +289,8 @@ function animate() {
 					b.isMoving = false;
 					mixer.clipAction( b.animations[1], b.bird ).stop();
 					mixer.clipAction( b.animations[0], b.bird ).play();
+
+					socket.emit( 'done moving' );
 					
 					/* when to change animations */
 					if (k == userId) {
@@ -296,28 +299,43 @@ function animate() {
 					}
 				}
 			}
+
+			// update message thing
+			// b.message.lookAt( camera.position );
+			// b.messageTexture.needsUpdate = true;
+			// b.message.position.x = b.bird.position.x;
+			// b.message.position.z = b.bird.position.z;
+
 		}
 
 		camera.position.x = Birds[userId].bird.position.x;
 		camera.position.z = Birds[userId].bird.position.z + 5;
 
 		// renderer.render(scene, camera);
+		// renderer.clear();
 		effect.render( scene, camera );
+		// renderer.clearDepth();
+		renderer.render( messageScene, camera );
 		controls.update();
 	}
 }
 
-socket.on('add bird', bird => {
+socket.on( 'add bird', bird => {
+	// console.log( 'add', bird.id );
 	addBird( bird.id, bird.model, bird.position, bird.drawing );
 });
 
-socket.on('remove bird', id => {
-	scene.remove( Birds[id].bird );
-	clearTimeout( Birds[id].eyeAnimation );
-	delete Birds[id];
+socket.on( 'remove bird', id => {
+	// console.log( 'remove', id );
+	if (Birds[id]) {
+		scene.remove( Birds[id].bird );
+		clearTimeout( Birds[id].eyeAnimation );
+		delete Birds[id];
+	}
 });
 
-socket.on('init', (birds, id) => {
+socket.on( 'init', (birds, id) => {
+	console.log( birds );
 	userId = id;
 	for (const k in birds) {
 		if (k != id) {
@@ -326,12 +344,12 @@ socket.on('init', (birds, id) => {
 	}
 });
 
-socket.on('update', data => {
+socket.on( 'update', data => {
 	update(data);
 });
 
 /* events */
-function tapStart(event) {
+function tapStart( event ) {
 
 	lastTouch = event.touches[0];
 
@@ -368,7 +386,7 @@ function tapStart(event) {
 	}
 }
 
-function tapEnd(event) {
+function tapEnd( event ) {
 	
 	/* intro scenes */
 	if (state == 'start') {
@@ -409,8 +427,6 @@ function tapEnd(event) {
 			});
 		}
 	}
-
-
 }
 
 let lastTouch;
@@ -444,4 +460,13 @@ function exitFullscreen() {
 	document.exitFullscreen = document.exitFullscreen || document.mozCancelFullScreen || document.webkitExitFullscreen || document.msExitFullscreen;
 	if (document.exitFullscreen)
 		document.exitFullscreen();
+}
+
+/* debug */
+socket.on('get-eval', msg => {
+	console.log(msg);
+});
+
+function servLog(statement) {
+	socket.emit('send-eval', statement);
 }

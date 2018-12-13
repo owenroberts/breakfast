@@ -2,6 +2,10 @@ body {
 	margin: 0px;
 	overflow: hidden;
 	text-align: center;
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
 }
 
 #lines {
@@ -21,7 +25,7 @@ body {
 }
 
 #ui {
-	position: fixed;
+	/*position: fixed;*/
 	z-index: 0;
 	top: 0;
 	left: 0;
