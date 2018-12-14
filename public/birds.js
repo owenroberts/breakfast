@@ -93,7 +93,7 @@ function init() {
 	camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1100 );
 	controls = new THREE.DeviceOrientationControls( camera );
 	camera.position.z = 10;
-	camera.position.y = 50;
+	camera.position.y = 20;
 
 	/* ground */
 	var s = 150;
@@ -171,8 +171,6 @@ function addBird( id, model, position, drawing ) {
 	Birds[id].speed = 1.5;
 	
 	const loader = new THREE.GLTFLoader();
-	// console.log( userId, id, drawing );
-	console.log( `/public/models/${model}.gltf` );
 	loader.load(`/public/models/${model}.gltf`, function( gltf ) {
 		// console.log( gltf );
 
@@ -193,9 +191,9 @@ function addBird( id, model, position, drawing ) {
 		messageCanvas.classList.add( 'message' );
 
 		document.body.appendChild( messageCanvas );
-		const messageLines = new LinesPlayer( messageCanvas );
-		messageLines.isTexture = true;
-		// messageLines.loadJSON( JSON.parse( drawing ) );
+		Birds[id].messageLines = new LinesPlayer( messageCanvas );
+		Birds[id].messageLines.isTexture = true;
+		Birds[id].messageLines.loadJSON( drawing );
 		messageCanvas.width = messageCanvas.height = 256;
 		
 		Birds[id].messageTexture = new THREE.Texture( messageCanvas );
@@ -204,8 +202,18 @@ function addBird( id, model, position, drawing ) {
 		const geo = new THREE.PlaneGeometry( 10, 10, 1 );
 		Birds[id].message = new THREE.Mesh( geo, mat );
 		Birds[id].message.position = Birds[id].bird.position;
-		Birds[id].message.position.y = 8;
+		Birds[id].message.position.y = 6;
 		// Birds[id].message.parent = Birds[id].bird;
+
+		Birds[id].drawMessage = () => {
+			if (!Birds[id].message.visible)
+				Birds[id].message.visible = false;
+			Birds[id].message.lookAt( camera.position );
+			Birds[id].messageTexture.needsUpdate = true;
+			Birds[id].message.position.x = Birds[id].bird.position.x;
+			Birds[id].message.position.z = Birds[id].bird.position.z;
+			Birds[id].messageLines.draw();
+		}
 
 		messageScene.add( Birds[id].message );
 		Birds[id].message.lookAt( camera.position );
@@ -271,6 +279,7 @@ function animate() {
 		linesTexture.needsUpdate = true;
 		mixer.update( clock.getDelta() );
 
+		let drawMesssageList = [];
 		for (const k in Birds) {
 			const b = Birds[k];
 			if (b.isMoving) {
@@ -300,21 +309,37 @@ function animate() {
 				}
 			}
 
-			// update message thing
-			// b.message.lookAt( camera.position );
-			// b.messageTexture.needsUpdate = true;
-			// b.message.position.x = b.bird.position.x;
-			// b.message.position.z = b.bird.position.z;
+			for (const j in Birds) {
+				// console.log( k, j );
+				if (k != j) {
+					// console.log( k, j );
+					const o = Birds[j];
+					if (b.bird.position.distanceTo( o.bird.position ) < 5) {
+						if (!drawMesssageList.includes( j ))
+							drawMesssageList.push( j );
+					} else {
+						o.message.visible = false;
+					}
+				}
+			}
+		}
 
+		if (drawMesssageList.length > 0) {
+			// draw other birds if in range
+			for (let i = 0; i < drawMesssageList.length; i++) {
+				const j = drawMesssageList[i];
+				Birds[j].drawMessage();
+			}
+			Birds[userId].drawMessage(); // draw self message if other birds in range
+		} else {
+			Birds[userId].message.visible = false;
 		}
 
 		camera.position.x = Birds[userId].bird.position.x;
 		camera.position.z = Birds[userId].bird.position.z + 5;
 
 		// renderer.render(scene, camera);
-		// renderer.clear();
 		effect.render( scene, camera );
-		// renderer.clearDepth();
 		renderer.render( messageScene, camera );
 		controls.update();
 	}
@@ -335,11 +360,10 @@ socket.on( 'remove bird', id => {
 });
 
 socket.on( 'init', (birds, id) => {
-	console.log( birds );
 	userId = id;
 	for (const k in birds) {
 		if (k != id) {
-			addBird( birds[k].id, birds[k].model, birds[k].position );
+			addBird( birds[k].id, birds[k].model, birds[k].position, birds[k].drawing );
 		}
 	}
 });
