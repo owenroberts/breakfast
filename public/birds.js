@@ -165,14 +165,15 @@ function init() {
 
 function addBird( id, model, position, drawing ) {
 	// console.log( 'add bird', id );
-	Birds[id] = {};
-	Birds[id].targets = [];
-	Birds[id].isMoving = false;
-	Birds[id].speed = 1.5;
 	
 	const loader = new THREE.GLTFLoader();
 	loader.load(`/public/models/${model}.gltf`, function( gltf ) {
 		// console.log( gltf );
+
+		Birds[id] = {};
+		Birds[id].targets = [];
+		Birds[id].isMoving = false;
+		Birds[id].speed = 1.5;
 
 		Birds[id].bird = gltf.scene.children[0];
 		Birds[id].animations = gltf.animations;
@@ -207,7 +208,7 @@ function addBird( id, model, position, drawing ) {
 
 		Birds[id].drawMessage = () => {
 			if (!Birds[id].message.visible)
-				Birds[id].message.visible = false;
+				Birds[id].message.visible = true;
 			Birds[id].message.lookAt( camera.position );
 			Birds[id].messageTexture.needsUpdate = true;
 			Birds[id].message.position.x = Birds[id].bird.position.x;
@@ -310,19 +311,22 @@ function animate() {
 			}
 
 			for (const j in Birds) {
-				// console.log( k, j );
 				if (k != j) {
-					// console.log( k, j );
-					const o = Birds[j];
-					if (b.bird.position.distanceTo( o.bird.position ) < 5) {
-						if (!drawMesssageList.includes( j ))
+					// console.log ( b.bird.position.distanceTo( Birds[j].bird.position  ));
+					if (b.bird.position.distanceTo( Birds[j].bird.position ) < 15) {
+						if (!drawMesssageList.includes( j )) {
 							drawMesssageList.push( j );
+							if (!drawMesssageList.includes( k )) {
+								drawMesssageList.push( k );
+							}
+						}
 					} else {
-						o.message.visible = false;
+						Birds[j].message.visible = false;
 					}
 				}
 			}
 		}
+
 
 		if (drawMesssageList.length > 0) {
 			// draw other birds if in range
@@ -330,9 +334,6 @@ function animate() {
 				const j = drawMesssageList[i];
 				Birds[j].drawMessage();
 			}
-			Birds[userId].drawMessage(); // draw self message if other birds in range
-		} else {
-			Birds[userId].message.visible = false;
 		}
 
 		camera.position.x = Birds[userId].bird.position.x;
@@ -388,7 +389,7 @@ function tapStart( event ) {
 
 		if (!Birds[userId].isMoving) {
 
-			const off = 12;
+			const off = 4;
 			const t1 = new THREE.Vector3(
 				Cool.random(bird.position.x - off, bird.position.x + off),
 				bird.position.y,
