@@ -1,5 +1,27 @@
 const socket = io();
 
+/* settings */
+const jumpDistance = 10;
+const messageDistance = 15;
+const birdSpeed = 1.5;
+const cameraOffset = 5;
+const cameraHeight = 30;
+const messageHeight = 10;
+
+const birdData = {
+	nightjar: {
+		idle: 1,
+		fly: 0,
+		flyDuration: 10 
+	},
+	wren: {
+		idle: 0,
+		fly: 1,
+		flyDuration: 20 
+	}
+}
+
+
 Birds = {};
 let userId;
 
@@ -56,6 +78,7 @@ const drawings = [
 ];
 
 let camera, scene, renderer, controls;
+let cameraDirectionVector;
 let clock, mixer;
 let messageScene;
 
@@ -72,6 +95,7 @@ window.addEventListener('devicemotion', onMotion, false);
 init();
 
 function init() {
+	cameraDirectionVector = new THREE.Vector3();
 	clock = new THREE.Clock();
 	scene = new THREE.Scene();
 	messageScene = new THREE.Scene();
@@ -93,7 +117,7 @@ function init() {
 	camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1100 );
 	controls = new THREE.DeviceOrientationControls( camera );
 	camera.position.z = 10;
-	camera.position.y = 20;
+	camera.position.y = cameraHeight;
 
 	/* ground */
 	var s = 150;
@@ -150,14 +174,10 @@ function init() {
 	const linesMaterial = new THREE.MeshBasicMaterial({ map: linesTexture, transparent: true, side: THREE.DoubleSide /*, color: 0xff00ff */});
 	linesPlayer.loadAnimation( "/public/drawings/feeder_2.json" );
 
-	var groundMesh = new THREE.Mesh( ground, linesMaterial );
-	
-	// var vertexNormalsHelper = new THREE.FaceNormalsHelper( groundMesh, 3 );
-	// groundMesh.add( vertexNormalsHelper );
+	const groundMesh = new THREE.Mesh( ground, linesMaterial );
 	scene.add( groundMesh );
 
-	// one animation mixer
-	mixer = new THREE.AnimationMixer( scene );
+	mixer = new THREE.AnimationMixer( scene ); // one animation mixer
 
 	socket.emit( 'loaded' );
 	// fullscreen();
@@ -173,12 +193,12 @@ function addBird( id, model, position, drawing ) {
 		Birds[id] = {};
 		Birds[id].targets = [];
 		Birds[id].isMoving = false;
-		Birds[id].speed = 1.5;
+		Birds[id].speed = birdSpeed;
+		Birds[id].model = model;
 
 		Birds[id].bird = gltf.scene.children[0];
 		Birds[id].animations = gltf.animations;
-		const dur = model == 'nightjar' ? 10 : 20;
-		Birds[id].animations[1].duration = 1000 / 24 * dur / 1000;
+		Birds[id].animations[birdData[model].fly].duration = 1000 / 24 * birdData[model].flyDuration / 1000;
 		Birds[id].bird.position.y = position.y;
 		Birds[id].bird.position.x = position.x;
 		Birds[id].bird.position.z = position.z;
@@ -203,7 +223,7 @@ function addBird( id, model, position, drawing ) {
 		const geo = new THREE.PlaneGeometry( 10, 10, 1 );
 		Birds[id].message = new THREE.Mesh( geo, mat );
 		Birds[id].message.position = Birds[id].bird.position;
-		Birds[id].message.position.y = 6;
+		Birds[id].message.position.y = messageHeight;
 		// Birds[id].message.parent = Birds[id].bird;
 
 		Birds[id].drawMessage = () => {
@@ -249,8 +269,16 @@ function addBird( id, model, position, drawing ) {
 		}
 		Birds[id].eyeAnimation = setTimeout( setEyeColor, Cool.random( 2000, 4000 ) );
 
+		Birds[id].animate = function(label, play) {
+			if (play) {
+				mixer.clipAction( this.animations[ birdData[this.model][label] ], this.bird ).play();
+			} else {
+				mixer.clipAction( this.animations[ birdData[this.model][label] ], this.bird ).stop();
+			}
+		};
+
 		// start animation
-		mixer.clipAction( Birds[id].animations[0], Birds[id].bird ).play();
+		Birds[id].animate( 'idle', true );
 	});
 }
 
@@ -266,8 +294,65 @@ function update( data ) {
 		// if there's an update, birds has to fly and look at new target
 		Birds[id].bird.lookAt( Birds[id].targets[0] );
 		Birds[id].isMoving = true;
-		mixer.clipAction( Birds[id].animations[0], Birds[id].bird ).stop();
-		mixer.clipAction( Birds[id].animations[1], Birds[id].bird ).play();
+		Birds[id].animate( 'idle', false );
+		Birds[id].animate( 'fly', true );
+	}
+}
+
+function birdUpdate() {
+	let drawMesssageList = []; // get birds close to each other to draw messages
+	for (const k in Birds) {
+		const b = Birds[k];
+		if (b.isMoving) {
+			if (b.targets.length > 0) {
+				const dist = b.bird.position.distanceTo( b.targets[0] );
+				if ( dist > 3.01 ) {
+					b.bird.position.x += b.bird.position.x > b.targets[0].x ? -b.speed : b.speed;
+					b.bird.position.z += b.bird.position.z > b.targets[0].z ? -b.speed : b.speed;
+					b.bird.position.y += b.bird.position.y < dist ? b.speed / 2 : -b.speed;
+				} else {
+					b.targets.shift();
+					if (b.targets.length > 0)
+						b.bird.lookAt( b.targets[0] );
+				}
+			} else {
+				b.isMoving = false;
+				b.animate( 'fly', false );
+				b.animate( 'idle', true );
+
+				socket.emit( 'done moving' );
+				
+				/* when to change animations */
+				if (k == userId) {
+					const dr = Cool.random( drawings );
+					linesPlayer.loadAnimation( dr );
+				}
+			}
+		}
+
+		for (const j in Birds) {
+			if (k != j) {
+				// console.log ( b.bird.position.distanceTo( Birds[j].bird.position  ));
+				if (b.bird.position.distanceTo( Birds[j].bird.position ) < messageDistance) {
+					if (!drawMesssageList.includes( j )) {
+						drawMesssageList.push( j );
+						if (!drawMesssageList.includes( k )) {
+							drawMesssageList.push( k );
+						}
+					}
+				} else {
+					Birds[j].message.visible = false;
+				}
+			}
+		}
+	}
+
+	if (drawMesssageList.length > 0) {
+		// draw other birds if in range
+		for (let i = 0; i < drawMesssageList.length; i++) {
+			const j = drawMesssageList[i];
+			Birds[j].drawMessage();
+		}
 	}
 }
 
@@ -280,64 +365,10 @@ function animate() {
 		linesTexture.needsUpdate = true;
 		mixer.update( clock.getDelta() );
 
-		let drawMesssageList = [];
-		for (const k in Birds) {
-			const b = Birds[k];
-			if (b.isMoving) {
-				if (b.targets.length > 0) {
-					const dist = b.bird.position.distanceTo( b.targets[0] );
-					if ( dist > 3.01 ) {
-						b.bird.position.x += b.bird.position.x > b.targets[0].x ? -b.speed : b.speed;
-						b.bird.position.z += b.bird.position.z > b.targets[0].z ? -b.speed : b.speed;
-						b.bird.position.y += b.bird.position.y < dist ? b.speed / 2 : -b.speed;
-					} else {
-						b.targets.shift();
-						if (b.targets.length > 0)
-							b.bird.lookAt( b.targets[0] );
-					}
-				} else {
-					b.isMoving = false;
-					mixer.clipAction( b.animations[1], b.bird ).stop();
-					mixer.clipAction( b.animations[0], b.bird ).play();
-
-					socket.emit( 'done moving' );
-					
-					/* when to change animations */
-					if (k == userId) {
-						const dr = Cool.random( drawings );
-						linesPlayer.loadAnimation( dr );
-					}
-				}
-			}
-
-			for (const j in Birds) {
-				if (k != j) {
-					// console.log ( b.bird.position.distanceTo( Birds[j].bird.position  ));
-					if (b.bird.position.distanceTo( Birds[j].bird.position ) < 15) {
-						if (!drawMesssageList.includes( j )) {
-							drawMesssageList.push( j );
-							if (!drawMesssageList.includes( k )) {
-								drawMesssageList.push( k );
-							}
-						}
-					} else {
-						Birds[j].message.visible = false;
-					}
-				}
-			}
-		}
-
-
-		if (drawMesssageList.length > 0) {
-			// draw other birds if in range
-			for (let i = 0; i < drawMesssageList.length; i++) {
-				const j = drawMesssageList[i];
-				Birds[j].drawMessage();
-			}
-		}
+		birdUpdate();
 
 		camera.position.x = Birds[userId].bird.position.x;
-		camera.position.z = Birds[userId].bird.position.z + 5;
+		camera.position.z = Birds[userId].bird.position.z + cameraOffset;
 
 		// renderer.render(scene, camera);
 		effect.render( scene, camera );
@@ -389,21 +420,26 @@ function tapStart( event ) {
 
 		if (!Birds[userId].isMoving) {
 
-			const off = 4;
+			const cameraDirection = camera.getWorldDirection( cameraDirectionVector );
+			
+			const camX = cameraDirection.x * 10;
+			const camZ = cameraDirection.z * 10;
+
+			const off = jumpDistance;
 			const t1 = new THREE.Vector3(
-				Cool.random(bird.position.x - off, bird.position.x + off),
+				Cool.random( bird.position.x - off + camX, bird.position.x + off + camX ),
 				bird.position.y,
-				Cool.random(bird.position.z - off, bird.position.z + off)
+				Cool.random( bird.position.z - off + camZ, bird.position.z + off + camZ )
 			);
 			const t2 = new THREE.Vector3(
-				Cool.random(t1.x - off, t1.x + off),
+				Cool.random( t1.x - off + camX, t1.x + off + camX ),
 				bird.position.y,
-				Cool.random(t1.z - off, t1.z + off)
+				Cool.random( t1.z - off + camZ, t1.z + off + camZ )
 			);
 			const t3 = new THREE.Vector3(
-				Cool.random(t2.x - off, t2.x + off),
+				Cool.random( t2.x - off + camX , t2.x + off + camX ),
 				bird.position.y,
-				Cool.random(t2.z - off, t2.z + off)
+				Cool.random( t2.z - off + camX, t2.z + off + camZ )
 			);
 		
 			socket.emit( 'tap', [ t1, t2, t3 ] );
