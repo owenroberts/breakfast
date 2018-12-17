@@ -5,6 +5,7 @@ function LinesDraw(canvas, lineColor) {
 	this.canvas = canvas;
 	this.ctx = this.canvas.getContext('2d');
 	this.ctx.miterLimit = 1;
+	this.ctx.lineWidth = 2;
 	this.width = this.canvas.width = window.innerWidth;
 	this.height = this.canvas.height = window.innerWidth;
 
@@ -65,6 +66,7 @@ function LinesDraw(canvas, lineColor) {
 	this.start = function() {
 		this.isPlaying = true;
 		requestAnimFrame(this.draw.bind(this));
+		this.ctx.lineWidth = 2;
 	};
 
 	this.end = function() {
@@ -159,10 +161,7 @@ function LinesDraw(canvas, lineColor) {
 		self.lines.push("end");
 	};
 
-
 	this.canvas.addEventListener('touchstart', self.drawStart);
 	this.canvas.addEventListener('touchend', self.drawEnd);
 	this.canvas.addEventListener('touchmove', self.drawUpdate);
-
-
 }	

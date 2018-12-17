@@ -210,12 +210,21 @@ function addBird( id, model, position, drawing ) {
 		/* message texture */
 		const messageCanvas = document.createElement( 'canvas' );
 		messageCanvas.classList.add( 'message' );
-
+		
 		document.body.appendChild( messageCanvas );
 		Birds[id].messageLines = new LinesPlayer( messageCanvas );
 		Birds[id].messageLines.isTexture = true;
-		Birds[id].messageLines.loadJSON( drawing );
-		messageCanvas.width = messageCanvas.height = 256;
+		if (drawing == 'hey.json') {
+			Birds[id].messageLines.loadAnimation( '/public/ai/' + drawing, () => {
+				Birds[id].messageLines.ctx.lineWidth = 2;
+				messageCanvas.width = messageCanvas.height = 256;
+			} );
+		} else {
+			Birds[id].messageLines.loadJSON( drawing, () => {
+				Birds[id].messageLines.ctx.lineWidth = 2;
+				messageCanvas.width = messageCanvas.height = 256;
+			} );
+		}
 		
 		Birds[id].messageTexture = new THREE.Texture( messageCanvas );
 		const mat = new THREE.MeshBasicMaterial({ map: Birds[id].messageTexture, transparent: true, side: THREE.DoubleSide });
@@ -419,30 +428,8 @@ function tapStart( event ) {
 		const bird = Birds[userId].bird;
 
 		if (!Birds[userId].isMoving) {
-
 			const cameraDirection = camera.getWorldDirection( cameraDirectionVector );
-			
-			const camX = cameraDirection.x * 10;
-			const camZ = cameraDirection.z * 10;
-
-			const off = jumpDistance;
-			const t1 = new THREE.Vector3(
-				Cool.random( bird.position.x - off + camX, bird.position.x + off + camX ),
-				bird.position.y,
-				Cool.random( bird.position.z - off + camZ, bird.position.z + off + camZ )
-			);
-			const t2 = new THREE.Vector3(
-				Cool.random( t1.x - off + camX, t1.x + off + camX ),
-				bird.position.y,
-				Cool.random( t1.z - off + camZ, t1.z + off + camZ )
-			);
-			const t3 = new THREE.Vector3(
-				Cool.random( t2.x - off + camX , t2.x + off + camX ),
-				bird.position.y,
-				Cool.random( t2.z - off + camX, t2.z + off + camZ )
-			);
-		
-			socket.emit( 'tap', [ t1, t2, t3 ] );
+			socket.emit( 'move', cameraDirection, jumpDistance )
 		}
 	}
 }
