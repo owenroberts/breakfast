@@ -8,6 +8,13 @@ function LinesDraw(canvas, lineColor) {
 	this.width = this.canvas.width = window.innerWidth;
 	this.height = this.canvas.height = window.innerWidth;
 
+	/* hard coded for now bc other options suck
+		bounding rect changes on mobile with drag
+		can get CSS but it's weird
+		https://stackoverflow.com/questions/6338217/get-a-css-value-with-javascript/16112771 */
+	this.offset = 80; 
+
+
 	this.lines = [];
 	this.isPlaying = false;
 
@@ -124,13 +131,12 @@ function LinesDraw(canvas, lineColor) {
 
 	this.drawUpdate = function(ev) {
 		const touch = ev.touches[0];
-		const offset = touch.target.getBoundingClientRect();
 		if (performance.now() > self.drawInterval + self.drawTimer) {
 			self.drawTimer = performance.now();
 			if (self.isDrawing && touch)
 				self.addLine(
-					Math.round(touch.clientX) - offset.left, 
-					Math.round(touch.clientY) - offset.top
+					Math.round(touch.clientX), 
+					Math.round(touch.clientY) - self.offset
 				);
 		}
 	};
@@ -142,8 +148,8 @@ function LinesDraw(canvas, lineColor) {
 			self.isDrawing = true;
 			self.drawTimer = performance.now();
 			self.addLine(
-				Math.round(touch.clientX) - offset.left, 
-				Math.round(touch.clientY) - offset.top
+				Math.round(touch.clientX), 
+				Math.round(touch.clientY) - self.offset
 			);
 		}
 	};
