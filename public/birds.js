@@ -77,6 +77,25 @@ const drawings = [
 	"/public/drawings/wind.json" // fast
 ];
 
+const aiDrawings = [
+	"/public/ai/answer.json",
+	"/public/ai/asks.json",
+	"/public/ai/boring.json",
+	"/public/ai/empty.json",
+	"/public/ai/fart.json",
+	"/public/ai/guess.json",
+	"/public/ai/hate.json",
+	"/public/ai/healthy.json",
+	"/public/ai/hi.json",
+	"/public/ai/mouth.json",
+	"/public/ai/noone.json",
+	"/public/ai/oldest.json",
+	"/public/ai/other.json",
+	"/public/ai/same.json",
+	"/public/ai/skip.json",
+	"/public/ai/star.json"
+];
+
 let camera, scene, renderer, controls;
 let cameraDirectionVector;
 let clock, mixer;
@@ -208,25 +227,27 @@ function addBird( id, model, position, drawing ) {
 		Birds[id].bird.rotation.z = 0;
 
 		/* message texture */
-		const messageCanvas = document.createElement( 'canvas' );
-		messageCanvas.classList.add( 'message' );
+		Birds[id].messageCanvas = document.createElement( 'canvas' );
+		Birds[id].messageCanvas.classList.add( 'message' );
 		
-		document.body.appendChild( messageCanvas );
-		Birds[id].messageLines = new LinesPlayer( messageCanvas );
+		document.body.appendChild( Birds[id].messageCanvas );
+		Birds[id].messageLines = new LinesPlayer( Birds[id].messageCanvas );
 		Birds[id].messageLines.isTexture = true;
-		if (drawing == 'hey.json') {
-			Birds[id].messageLines.loadAnimation( '/public/ai/' + drawing, () => {
+		if (drawing == 'ai') {
+			Birds[id].messageLines.loadAnimation( Cool.random( aiDrawings ), () => {
+				Birds[id].messageLines.ctx.miterLimit = 1;
 				Birds[id].messageLines.ctx.lineWidth = 2;
-				messageCanvas.width = messageCanvas.height = 256;
+				Birds[id].messageCanvas.width = Birds[id].messageCanvas.height = 256;
 			} );
 		} else {
 			Birds[id].messageLines.loadJSON( drawing, () => {
+				Birds[id].messageLines.ctx.miterLimit = 1;
 				Birds[id].messageLines.ctx.lineWidth = 2;
-				messageCanvas.width = messageCanvas.height = 256;
+				Birds[id].messageCanvas.width = Birds[id].messageCanvas.height = 256;
 			} );
 		}
 		
-		Birds[id].messageTexture = new THREE.Texture( messageCanvas );
+		Birds[id].messageTexture = new THREE.Texture( Birds[id].messageCanvas );
 		const mat = new THREE.MeshBasicMaterial({ map: Birds[id].messageTexture, transparent: true, side: THREE.DoubleSide });
 
 		const geo = new THREE.PlaneGeometry( 10, 10, 1 );
@@ -291,24 +312,18 @@ function addBird( id, model, position, drawing ) {
 	});
 }
 
-function update( data ) {
-	for (const id in data) {
-		for (let i = 0; i < data[id].targets.length; i++) {
-			Birds[id].targets.push( new THREE.Vector3( 
-				data[id].targets[i].x,
-				data[id].targets[i].y,
-				data[id].targets[i].z
-			) );
-		}
-		// if there's an update, birds has to fly and look at new target
-		Birds[id].bird.lookAt( Birds[id].targets[0] );
-		Birds[id].isMoving = true;
-		Birds[id].animate( 'idle', false );
-		Birds[id].animate( 'fly', true );
+function removeBird( id ) {
+	if (Birds[id]) {
+		Birds[id].messageCanvas.remove();
+		scene.remove( Birds[id].bird );
+		messageScene.remove( Birds[id].message );
+		// renderer.clear();
+		clearTimeout( Birds[id].eyeAnimation );
+		delete Birds[id];
 	}
 }
 
-function birdUpdate() {
+function updateBirds() {
 	let drawMesssageList = []; // get birds close to each other to draw messages
 	for (const k in Birds) {
 		const b = Birds[k];
@@ -349,10 +364,12 @@ function birdUpdate() {
 							drawMesssageList.push( k );
 						}
 					}
-				} else {
-					Birds[j].message.visible = false;
 				}
 			}
+		}
+
+		if (!drawMesssageList.includes(k)) {
+			b.message.visible = false;
 		}
 	}
 
@@ -365,6 +382,23 @@ function birdUpdate() {
 	}
 }
 
+function update( data ) {
+	for (const id in data) {
+		for (let i = 0; i < data[id].targets.length; i++) {
+			Birds[id].targets.push( new THREE.Vector3( 
+				data[id].targets[i].x,
+				data[id].targets[i].y,
+				data[id].targets[i].z
+			) );
+		}
+		// if there's an update, birds has to fly and look at new target
+		Birds[id].bird.lookAt( Birds[id].targets[0] );
+		Birds[id].isMoving = true;
+		Birds[id].animate( 'idle', false );
+		Birds[id].animate( 'fly', true );
+	}
+}
+
 function animate() {
 	requestAnimFrame(animate);
 	if (performance.now() > interval + timer) {
@@ -374,7 +408,7 @@ function animate() {
 		linesTexture.needsUpdate = true;
 		mixer.update( clock.getDelta() );
 
-		birdUpdate();
+		updateBirds();
 
 		camera.position.x = Birds[userId].bird.position.x;
 		camera.position.z = Birds[userId].bird.position.z + cameraOffset;
@@ -393,11 +427,7 @@ socket.on( 'add bird', bird => {
 
 socket.on( 'remove bird', id => {
 	// console.log( 'remove', id );
-	if (Birds[id]) {
-		scene.remove( Birds[id].bird );
-		clearTimeout( Birds[id].eyeAnimation );
-		delete Birds[id];
-	}
+	removeBird( id );
 });
 
 socket.on( 'init', (birds, id) => {
@@ -459,6 +489,7 @@ function tapEnd( event ) {
 		uiLines.loadAnimation( '/public/drawings/save.json', () => {
 			state = 'draw';
 			drawCanvas.style.display = 'block';
+			drawLines.setup();
 			drawLines.start();
 		});
 	}

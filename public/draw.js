@@ -4,8 +4,6 @@ function LinesDraw(canvas, lineColor) {
 
 	this.canvas = canvas;
 	this.ctx = this.canvas.getContext('2d');
-	this.ctx.miterLimit = 1;
-	this.ctx.lineWidth = 2;
 	this.width = this.canvas.width = window.innerWidth;
 	this.height = this.canvas.height = window.innerWidth;
 
@@ -14,7 +12,10 @@ function LinesDraw(canvas, lineColor) {
 		can get CSS but it's weird
 		https://stackoverflow.com/questions/6338217/get-a-css-value-with-javascript/16112771 */
 	this.offset = 80; 
-
+	this.setup = function() {
+		this.ctx.miterLimit = 1;
+		this.ctx.lineWidth = 2;
+	}
 
 	this.lines = [];
 	this.isPlaying = false;

@@ -25,6 +25,7 @@ const DEBUG = true;
 const birds = {};
 let aiCount = 0;
 let updateInterval;
+let aiTimeout;
 
 function random(min, max) {
 	if (!max) {
@@ -40,7 +41,6 @@ function random(min, max) {
 
 class Bird {
 	constructor(socket) {
-		
 		this.needsUpdate = false;
 		this.position = { x: 0, y: 2, z: 0 };
 		this.targets = [];
@@ -49,7 +49,7 @@ class Bird {
 		if (socket) {
 			this.id = socket.id;
 			socket.on('move', (direction, distance) => {
-				this.needsUpdate = true;
+				
 				this.move(direction, distance);
 			});
 
@@ -65,15 +65,9 @@ class Bird {
 		
 	}
 	move(direction, distance) {
-		let x, z;
-		if (direction) {
-			x = direction.x * 5;
-			z = direction.z * 5;
-		} else {
-			x = 0;
-			z = 0;
-		}
-
+		let x = direction.x * 5;
+		let z = direction.z * 5;
+		
 		const t1 = {
 			x: random(this.position.x - distance + x, this.position.x + distance + x),
 			y: this.position.y,
@@ -91,9 +85,7 @@ class Bird {
 		};
 
 		this.targets = [t1, t2, t3];
-	}
-	initSockets() {
-
+		this.needsUpdate = true;
 	}
 }
 
@@ -125,20 +117,20 @@ function addAIBird() {
 		const id = `ai-${aiCount++}`
 		birds[id] = new Bird();
 		birds[id].id = id;
-		birds[id].drawing = 'hey.json';
+		birds[id].drawing = 'ai';
 		io.sockets.emit('add bird', birds[id]);
 
 		let moveTimeout;
 		function mover() {
-			birds[id].move();
-			moveTimeout = setTimeout(mover, random(800, 1200));
+			birds[id].move({x: 0, z: 0}, 5);
+			moveTimeout = setTimeout(mover, random(2000, 3000));
 		}
-		moveTimeout = setTimeout(mover, random(800, 1200));
+		moveTimeout = setTimeout(mover, random(2000, 3000));
 
-		setTimeout(() => {
+		aiTimeout = setTimeout(() => {
 			clearTimeout(moveTimeout);
 			removeBird(id);
-			setTimeout(addAIBird, 2000);
+			aiTimeout = setTimeout(addAIBird, 2000);
 		}, random(5000, 10000));
 	}
 }
@@ -148,29 +140,37 @@ function removeBird(id) {
 		io.sockets.emit('remove bird', id);
 		delete birds[id];
 	}
+	for (const k in birds) {
+		if (birds[k].drawing == 'ai') {
+			io.sockets.emit('remove bird', id);
+			delete birds[id];
+		}
+	}
 	if (Object.keys(birds).length == 0) {
 		clearInterval(updateInterval);
+		clearTimeout(aiTimeout);
+		updateInterval = undefined;
 	}
 }
 
 io.on('connection', socket => {
 	// console.log('new bird', socket.id);
-
-	if (Object.keys(birds).length == 0) {
-		updateInterval = setInterval(update, 1000 / 30);
-		setTimeout( addAIBird, 2000 );
-	}
-	birds[socket.id] = new Bird(socket);
 	
 	socket.on('loaded', () => {
 		socket.emit('init', init(), socket.id);
-		// io.sockets.emit('add bird', birds[socket.id]);
 	});
 
 	socket.on('add drawing', drawing => {
 		// console.log( 'drawing', socket.id );
+		birds[socket.id] = new Bird(socket);
 		birds[socket.id].drawing = drawing;
 		io.sockets.emit('add bird', birds[socket.id]);
+
+		if (!updateInterval)
+			updateInterval = setInterval(update, 1000 / 30);
+
+		if (Object.keys(birds).length < 2)
+			aiTimeout = setTimeout(addAIBird, 10000);
 	});
 
 	socket.on('disconnect', () => {
