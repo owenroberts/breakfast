@@ -20,6 +20,11 @@ body {
 	right: 0;
 }
 
+#desktop {
+	opacity: 0;
+	transition: opacity 2s ease-in;
+}
+
 #lines {
 	position: fixed;
 	display: none;

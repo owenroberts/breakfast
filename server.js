@@ -140,14 +140,16 @@ function removeBird(id) {
 		io.sockets.emit('remove bird', id);
 		delete birds[id];
 	}
-	for (const k in birds) {
-		if (birds[k].drawing == 'ai') {
-			// console.log(birds[k].drawing, k);
-			io.sockets.emit('remove bird', id);
-			delete birds[id];
+	if (Object.keys(birds).length == 1) {
+		for (const k in birds) {
+			if (birds[k].drawing == 'ai') {
+				io.sockets.emit('remove bird', id);
+				delete birds[id];
+			} else {
+				aiTimeout = setTimeout(addAIBird, 10000);
+			}
 		}
-	}
-	if (Object.keys(birds).length == 0) {
+	} else if (Object.keys(birds).length == 0) {
 		clearInterval(updateInterval);
 		clearTimeout(aiTimeout);
 		updateInterval = undefined;

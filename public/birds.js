@@ -43,7 +43,6 @@ uiLines.onPlayedOnce = () => {
 	state = 'sound';
 };
 
-
 /* drawing canvas */
 const drawCanvas = document.getElementById( 'draw' );
 const drawLines = new LinesDraw( drawCanvas, '264F72' );
@@ -111,15 +110,13 @@ function onMotion(ev) {
 		document.getElementById('desktop').remove();
 		uiLines.loadAnimation( '/public/ui/title.json' );
 		init();
-		document.addEventListener('visibilitychange', location.reload) // hacky for now
 	}
 }
 window.addEventListener('devicemotion', onMotion, false);
+document.getElementById('desktop').style.opacity = 1;
 
 function init() {
-
 	downVector = new THREE.Vector3(0, -5, 0);
-	
 	cameraDirectionVector = new THREE.Vector3();
 	clock = new THREE.Clock();
 	scene = new THREE.Scene();
@@ -205,7 +202,8 @@ function init() {
 	mixer = new THREE.AnimationMixer( scene ); // one animation mixer
 
 	socket.emit( 'loaded' );
-	// fullscreen();
+	socketEvents();
+	fullscreen();
 }
 
 function addBird( id, model, position, drawing ) {
@@ -419,7 +417,7 @@ function update( data ) {
 			) );
 		}
 		// if there's an update, birds has to fly and look at new target
-		// console.log( Birds[id].targets[0] );
+		// console.log( Birds[id].targets[0] ); // targets undefined sometimes?
 		Birds[id].bird.lookAt( Birds[id].targets[0] );
 		Birds[id].isMoving = true;
 		Birds[id].animate( 'fly' );
@@ -447,28 +445,30 @@ function animate() {
 	}
 }
 
-socket.on( 'add bird', bird => {
-	// console.log( 'add', bird.id );
-	addBird( bird.id, bird.model, bird.position, bird.drawing );
-});
+function socketEvents() {
+	socket.on( 'add bird', bird => {
+		// console.log( 'add', bird.id );
+		addBird( bird.id, bird.model, bird.position, bird.drawing );
+	});
 
-socket.on( 'remove bird', id => {
-	// console.log( 'remove', id );
-	removeBird( id );
-});
+	socket.on( 'remove bird', id => {
+		// console.log( 'remove', id );
+		removeBird( id );
+	});
 
-socket.on( 'init', (birds, id) => {
-	userId = id;
-	for (const k in birds) {
-		if (k != id) {
-			addBird( birds[k].id, birds[k].model, birds[k].position, birds[k].drawing );
+	socket.on( 'init', (birds, id) => {
+		userId = id;
+		for (const k in birds) {
+			if (k != id) {
+				addBird( birds[k].id, birds[k].model, birds[k].position, birds[k].drawing );
+			}
 		}
-	}
-});
+	});
 
-socket.on( 'update', data => {
-	update(data);
-});
+	socket.on( 'update', data => {
+		update(data);
+	});
+}
 
 /* events */
 function tapStart( event ) {
@@ -494,12 +494,21 @@ function tapStart( event ) {
 function tapEnd( event ) {
 	
 	/* intro scenes */
-	if (state == 'start') {
+	if (state == 'join') {
 		uiCanvas.style.display = 'none';
 		uiLines.isPlaying = false;
 		state = 'game';
 		animate();
 		renderer.domElement.style.display = 'block';
+	}
+
+	if (state == 'fullscreen') {
+		if (lastTouch.clientY < height / 2) {
+			fullscreen();
+		}
+		uiLines.loadAnimation( '/public/ui/join.json', () => {
+			state = 'join';
+		});
 	}
 
 	if (state == 'sound') {
@@ -525,11 +534,17 @@ function tapEnd( event ) {
 		if (lastTouch.clientY < 50) {
 			const drawing = drawLines.save();
 			socket.emit( 'add drawing', drawing );
-			uiLines.loadAnimation( '/public/ui/join.json', () => {
-				state = 'start';
-				drawCanvas.style.display = 'none';
-				drawLines.end();
-			});
+			drawCanvas.style.display = 'none';
+			drawLines.end();
+			if (renderer.domElement.requestFullscreen || renderer.domElement.msRequestFullscreen || renderer.domElement.mozRequestFullScreen || renderer.domElement.webkitRequestFullscreen) {
+					uiLines.loadAnimation( '/public/ui/fullscreen.json', () => {
+						state = 'fullscreen';
+					});
+			} else {
+				uiLines.loadAnimation( '/public/ui/join.json', () => {
+					state = 'join';
+				});
+			}
 		}
 	}
 }
@@ -561,6 +576,7 @@ function fullscreen() {
 		renderer.domElement.webkitRequestFullscreen();
 	}
 }
+
 function exitFullscreen() {
 	document.exitFullscreen = document.exitFullscreen || document.mozCancelFullScreen || document.webkitExitFullscreen || document.msExitFullscreen;
 	if (document.exitFullscreen)
@@ -575,3 +591,13 @@ socket.on('get-eval', msg => {
 function servLog(statement) {
 	socket.emit('send-eval', statement);
 }
+
+/* stop sound/site when leaving browser */
+document.addEventListener('visibilitychange', ev => {
+	location.reload(); // easier for now
+	if (document.hidden && !bgMusic.paused) {
+		bgMusic.pause();
+	} else if (!document.hidden && bgMusic.paused) {
+		bgMusic.play();
+	}
+});
