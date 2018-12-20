@@ -13,7 +13,8 @@ window.addEventListener("load", function() {
 	Lines.interface = new Interface();
 
 	// width height color, def color is black 000000
-	Lines.canvas = new Canvas(375, 667, "ffffff" ); 
+	Lines.canvas = new Canvas(375, 667, "ffffff" );
+	// Lines.canvas.ctx.lineWidth = 2;
 	Lines.draw = new Draw();
 	Lines.data = new Data();
 	Lines.lineColor = new Color("color", "Line Color"); 

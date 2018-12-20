@@ -75,9 +75,7 @@ function LinesDraw(canvas, lineColor) {
 	};
 
 	this.save = function() {
-		/* add wiggle */
-		/* add explode */
-		/* return json string */
+		
 		const json = {};
 		const frames = [];
 		const wiggle = Cool.randomInt(1, 3);

@@ -4,7 +4,11 @@ body {
 	height: 100%;
 	width: 100%;
 	overflow: auto;
+	color: #264F72;
+	font-family: menlo, monaco, monospace, sans-serif;
 }
+
+a { color: blue; }
 
 body {
 	margin: 0px;

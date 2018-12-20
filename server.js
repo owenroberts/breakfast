@@ -42,7 +42,7 @@ function random(min, max) {
 class Bird {
 	constructor(socket) {
 		this.needsUpdate = false;
-		this.position = { x: 0, y: 2, z: 0 };
+		this.position = { x: random(-5, 5), y: 2, z: random(-5, 5) };
 		this.targets = [];
 		this.model = Math.random() < 0.65 ? 'nightjar' : 'wren';
 
@@ -142,6 +142,7 @@ function removeBird(id) {
 	}
 	for (const k in birds) {
 		if (birds[k].drawing == 'ai') {
+			// console.log(birds[k].drawing, k);
 			io.sockets.emit('remove bird', id);
 			delete birds[id];
 		}
