@@ -1,6 +1,13 @@
+function requireHTTPS(req, res, next) {
+  // The 'x-forwarded-proto' check is for Heroku
+  if (!req.secure && req.get('x-forwarded-proto') !== 'https' && process.env.NODE_ENV !== "development") {
+    return res.redirect('https://' + req.get('host') + req.url);
+  }
+  next();
+}
+
 const express = require('express');
 const http = require('http');
-const enforce = require('express-sslify');
 const path = require('path');
 const socketIO = require('socket.io');
 const favicon = require('serve-favicon');
@@ -9,19 +16,18 @@ const app = express();
 const server = http.Server(app);
 const io = socketIO(server);
 
-// app.use(enforce.HTTPS());
-
 const port = process.env.PORT || 5000;
 app.set('port', port);
 app.use('/public', express.static(__dirname + '/public'));
 app.use(favicon(path.join(__dirname, 'public', 'favicon.png')));
+app.use(requireHTTPS);
 
 app.get('/', function(request, response){
 	response.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-http.createServer(app).listen(app.get('port'), function() {
-    console.log('Express server listening on port ' + app.get('port'));
+server.listen(port, function() {
+	console.log('Starting server on port ' + port);
 });
 
 const DEBUG = true;
