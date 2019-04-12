@@ -5,6 +5,7 @@ function requireHTTPS(req, res, next) {
   }
   next();
 }
+// https://stackoverflow.com/questions/8605720/how-to-force-ssl-https-in-express-js
 
 const express = require('express');
 const http = require('http');
