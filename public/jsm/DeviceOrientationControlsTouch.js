@@ -5,6 +5,11 @@
  * W3C Device Orientation control (http://w3c.github.io/deviceorientation/spec-source-orientation.html)
  */
 
+/*
+	i added manual controls from this example:
+	http://richtr.github.io/threeVR/examples/vr_basic.html
+*/
+
 import {
 	Euler,
 	MathUtils,
