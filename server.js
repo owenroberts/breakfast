@@ -18,38 +18,36 @@ const path = require('path');
 const socketIO = require('socket.io');
 const favicon = require('serve-favicon');
 
-const options = {
-	key: fs.readFileSync('./key.pem', 'utf8'),
-	cert: fs.readFileSync('./server.crt', 'utf8')
-};
 
 const app = express();
-const server = https.Server(options, app);
-const io = socketIO(server);
 
+let server;
+if (process.env.NODE_ENV != 'production') {
+	const options = {
+		key: fs.readFileSync('./key.pem', 'utf8'),
+		cert: fs.readFileSync('./server.crt', 'utf8')
+	};
+	server = https.Server(options, app);
+} else {
+	server = http.Server(app);
+}
+
+const io = socketIO(server);
 const port = process.env.PORT || 5000;
 
 app.set('port', port);
 app.use('/public', express.static(__dirname + '/public'));
 app.use(favicon(path.join(__dirname, 'public', 'favicon.png')));
 
+server.listen(port, function() {
+	console.log('Starting server on port ' + port);
+});
+
 // if deployed
 app.use(requireHTTPS); // comment out for local
 
-// if local
-// if (process.env.NODE_ENV != 'production') {
-	
-// 	https.createServer(options, app).listen(process.env.PORT, function () {
-//         console.log("Express server listening with https on port %d in %s mode", this.address().port, app.settings.env);
-//     });
-// }
-
 app.get('/', function(request, response){
 	response.sendFile(path.join(__dirname, 'public/index.html'));
-});
-
-server.listen(port, '0.0.0.0', function() {
-	console.log('Starting server on port ' + port);
 });
 
 const DEBUG = true;
