@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>outline</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+</head>
+<body>
+
+
+	<script type="module">
+		import * as THREE from './jsm/three.module.js';
+		import { OutlineEffect } from './jsm/OutlineEffect.js';
+		import { OrbitControls } from './jsm/OrbitControls.js';
+		import { GLTFLoader } from './jsm/GLTFLoader.js';
+
+		let controls, camera, scene, renderer;
+		let clock, effect;
+		let bird;
+
+		init()
+
+		function init() {
+			clock = new THREE.Clock();
+			scene = new THREE.Scene();
+
+			scene.background = new THREE.Color( 0xabcabc );
+
+			renderer = new THREE.WebGLRenderer();
+			renderer.autoClear = false;
+			renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild(renderer.domElement);
+			// renderer.gammaInput = true;
+			// renderer.gammaOutput = true;
+			effect = new OutlineEffect( renderer, {
+				defaultThickness: 0.006,
+				defaultColor: new THREE.Color( 0x264F72 )
+			} );
+
+			camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1100 );
+			controls = new OrbitControls( camera, renderer.domElement );
+
+			camera.position.z = 10;
+			camera.position.y = 10;
+
+
+			var geometry = new THREE.BoxGeometry( 2, 2, 2 );
+			var material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+			var cube = new THREE.Mesh( geometry, material );
+			scene.add( cube );
+
+			const loader = new GLTFLoader();
+			loader.load(`/models/nightjar.gltf`, function( gltf ) {
+				bird = gltf.scene.children[0];
+				bird.rotation.x = 0;
+				bird.rotation.y = Math.PI * 1.25;
+				bird.rotation.z = 0;
+
+				bird.traverse( function( o ) {
+					if ( o.material ) {
+						if ( o.material.name == "Eye" ) {
+							console.log( o );
+							// console.log( o.material.color );
+							o.material.color.set( 0x264F72 );
+							bird.eyeColor = o.material.color;
+							bird.originalColor = {
+								r: bird.eyeColor.r,
+								g: bird.eyeColor.g,
+								b: bird.eyeColor.b,
+							}
+						}
+					}
+				});
+
+				scene.add( bird );
+
+			});
+
+			animate();
+		}
+
+		function animate() {
+			requestAnimationFrame(animate);
+			
+
+				// renderer.render(scene, camera);
+				effect.render( scene, camera );
+				controls.update();
+		}
+
+	</script>
+</body>
+</html>

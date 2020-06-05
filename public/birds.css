@@ -1,10 +1,14 @@
 /* ios bounce */
+:root {
+	--color: #264F72;
+}
+
 html,
 body {
 	height: 100%;
 	width: 100%;
 	overflow: auto;
-	color: #264F72;
+	color: var(--color);
 	font-family: menlo, monaco, monospace, sans-serif;
 }
 
@@ -20,9 +24,24 @@ body {
 	right: 0;
 }
 
-#desktop {
+button {
+	font: inherit;
+	color: inherit;
+	background-color: white;
+	border: 2px solid var(--color);
+	border-radius: 0.25em;
+	cursor: pointer;
+}
+
+button:focus, button:hover, button:active {
+	outline: none;
+	background-color: var(--color);
+	color: white;
+}
+
+#desktop, #mobile {
 	opacity: 0;
-	transition: opacity 2s ease-in;
+	transition: opacity 1s ease-in;
 }
 
 #lines {
@@ -37,8 +56,10 @@ body {
 	z-index: 2;
 	top: 80px;
 	left: 0;
+	right: 0;
 	border-top: 1px solid #264F72;
 	border-bottom: 1px solid #264F72;
+	margin: 0 auto;
 }
 
 #ui {

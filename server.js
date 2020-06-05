@@ -1,33 +1,54 @@
 function requireHTTPS(req, res, next) {
-  // The 'x-forwarded-proto' check is for Heroku
-  if (!req.secure && req.get('x-forwarded-proto') !== 'https' && process.env.NODE_ENV !== "development") {
-    return res.redirect('https://' + req.get('host') + req.url);
-  }
-  next();
+	// The 'x-forwarded-proto' check is for Heroku
+	if (!req.secure && req.get('x-forwarded-proto') !== 'https' && 
+		process.env.NODE_ENV !== "development") {
+		return res.redirect('https://' + req.get('host') + req.url);
+	} else {
+
+	}
+	next();
 }
 // https://stackoverflow.com/questions/8605720/how-to-force-ssl-https-in-express-js
 
 const express = require('express');
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
 const path = require('path');
 const socketIO = require('socket.io');
 const favicon = require('serve-favicon');
 
+const options = {
+	key: fs.readFileSync('./key.pem', 'utf8'),
+	cert: fs.readFileSync('./server.crt', 'utf8')
+};
+
 const app = express();
-const server = http.Server(app);
+const server = https.Server(options, app);
 const io = socketIO(server);
 
 const port = process.env.PORT || 5000;
+
 app.set('port', port);
 app.use('/public', express.static(__dirname + '/public'));
 app.use(favicon(path.join(__dirname, 'public', 'favicon.png')));
-app.use(requireHTTPS);
+
+// if deployed
+app.use(requireHTTPS); // comment out for local
+
+// if local
+// if (process.env.NODE_ENV != 'production') {
+	
+// 	https.createServer(options, app).listen(process.env.PORT, function () {
+//         console.log("Express server listening with https on port %d in %s mode", this.address().port, app.settings.env);
+//     });
+// }
 
 app.get('/', function(request, response){
 	response.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-server.listen(port, function() {
+server.listen(port, '0.0.0.0', function() {
 	console.log('Starting server on port ' + port);
 });
 

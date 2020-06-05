@@ -21,7 +21,7 @@ const birdData = {
 	}
 };
 
-Birds = {};
+const Birds = {};
 let userId;
 let tapCount = 0;
 const tapAmount = 10;
@@ -97,26 +97,26 @@ const aiDrawings = [
 	"/public/ai/star.json"
 ];
 
+/* three stuff */
+import * as THREE from './jsm/three.module.js';
+import { DeviceOrientationControls } from './jsm/DeviceOrientationControlsTouch.js';
+import { OutlineEffect } from './jsm/OutlineEffect.js';
+import { GLTFLoader } from './jsm/GLTFLoader.js';
+import { OrbitControls } from './jsm/OrbitControls.js';
+
 let camera, scene, renderer, controls;
 let cameraDirectionVector;
 let clock, mixer;
+let effect;
 let messageScene;
-let downVector;
+let downVector = new THREE.Vector3( 0, -5, 0 );
 
-// better than mobile check, includes ipad
-function onMotion(ev) {
-	window.removeEventListener('devicemotion', onMotion, false);
-	if (ev.acceleration.x != null || ev.accelerationIncludingGravity.x != null) {
-		document.getElementById('desktop').remove();
-		uiLines.loadAnimation( '/public/ui/title.json' );
-		init();
-	}
-}
-window.addEventListener('devicemotion', onMotion, false);
-document.getElementById('desktop').style.opacity = 1;
+
+uiLines.loadAnimation( '/public/ui/title.json' );
+init();
 
 function init() {
-	downVector = new THREE.Vector3(0, -5, 0);
+
 	cameraDirectionVector = new THREE.Vector3();
 	clock = new THREE.Clock();
 	scene = new THREE.Scene();
@@ -129,15 +129,18 @@ function init() {
 	renderer.setSize(width, height);
 	document.body.appendChild(renderer.domElement);
 	renderer.domElement.style.display = 'none';
-	renderer.gammaInput = true;
-	renderer.gammaOutput = true;
-	effect = new THREE.OutlineEffect( renderer, {
+	// renderer.gammaInput = true;
+	// renderer.gammaOutput = true;
+	effect = new OutlineEffect( renderer, {
 		defaultThickness: 0.006,
 		defaultColor: new THREE.Color( 0x264F72 )
 	} );
 
 	camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1100 );
-	controls = new THREE.DeviceOrientationControls( camera );
+	controls = new DeviceOrientationControls( camera );
+
+	if (!Cool.mobilecheck()) setupDesktop();
+	
 	camera.position.z = 10;
 	camera.position.y = cameraHeight;
 
@@ -203,13 +206,13 @@ function init() {
 
 	socket.emit( 'loaded' );
 	socketEvents();
-	fullscreen();
+	// fullscreen();
 }
 
 function addBird( id, model, position, drawing ) {
 	// console.log( 'add bird', id );
 	
-	const loader = new THREE.GLTFLoader();
+	const loader = new GLTFLoader();
 	loader.load(`/public/models/${model}.gltf`, function( gltf ) {
 		// console.log( model, gltf.animations );
 
@@ -234,9 +237,7 @@ function addBird( id, model, position, drawing ) {
 		Birds[id].bird.position.x = position.x;
 		Birds[id].bird.position.z = position.z;
 		
-		Birds[id].bird.rotation.x = 0;
-		Birds[id].bird.rotation.y = Math.PI * 1.25;
-		Birds[id].bird.rotation.z = 0;
+		Birds[id].bird.rotation.set( 0, Math.PI * 1.25, 0 );
 
 		/* message texture */
 		Birds[id].messageCanvas = document.createElement( 'canvas' );
@@ -260,7 +261,8 @@ function addBird( id, model, position, drawing ) {
 
 			const geo = new THREE.PlaneGeometry( 10, 10, 1 );
 			Birds[id].message = new THREE.Mesh( geo, mat );
-			Birds[id].message.position = Birds[id].bird.position;
+
+			Birds[id].message.position.set( Birds[id].bird.position.x, Birds[id].bird.position.y, Birds[id].bird.position.z );
 			Birds[id].message.position.y = messageHeight;
 
 			messageScene.add( Birds[id].message );
@@ -281,28 +283,22 @@ function addBird( id, model, position, drawing ) {
 		Birds[id].bird.targets = [];
 		scene.add( Birds[id].bird );
 		
+		let eyeMaterial;
+
 		Birds[id].bird.traverse( function( o ) {
 			if ( o.material ) {
 				if ( o.material.name == "Eye" ) {
-					Birds[id].bird.eyeColor = o.material.color;
-					Birds[id].bird.originalColor = {
-						r: Birds[id].bird.eyeColor.r,
-						g: Birds[id].bird.eyeColor.g,
-						b: Birds[id].bird.eyeColor.b,
-					}
+					eyeMaterial = o.material;
+					eyeMaterial.color.set( 0x264F72 );
 				}
 			}
 		});
 
 		// eyeColor
 		function setEyeColor() {
-			Birds[id].bird.eyeColor.r = 1;
-			Birds[id].bird.eyeColor.g = 1;
-			Birds[id].bird.eyeColor.b = 1;
+			eyeMaterial.color.set( 0xffffff );
 			Birds[id].eyeAnimation = setTimeout(() => {
-				Birds[id].bird.eyeColor.r = Birds[id].bird.originalColor.r;
-				Birds[id].bird.eyeColor.g = Birds[id].bird.originalColor.g;
-				Birds[id].bird.eyeColor.b = Birds[id].bird.originalColor.b;
+				eyeMaterial.color.set( 0x264F72 );
 				Birds[id].eyeAnimation = setTimeout( setEyeColor, Cool.random( 100, 5000 ) );
 			}, 100);
 		}
@@ -335,7 +331,10 @@ function removeBird( id ) {
 }
 
 function updateBirds() {
-	let drawMesssageList = []; // get birds close to each other to draw messages
+	
+	// get birds close to each other to draw messages
+	let drawMesssageList = []; // really "sing" list now
+
 	for (const k in Birds) {
 		const b = Birds[k];
 		if (b.isMoving) {
@@ -375,9 +374,10 @@ function updateBirds() {
 			}
 		}
 
+		// only show messages of other birds when they're close
+		// currently just for triggering the "sing" animation which i dont know if it works
 		for (const j in Birds) {
 			if (k != j) {
-				// console.log ( b.bird.position.distanceTo( Birds[j].bird.position  ));
 				if (b.bird.position.distanceTo( Birds[j].bird.position ) < messageDistance) {
 					if (!drawMesssageList.includes( j )) {
 						drawMesssageList.push( j );
@@ -389,20 +389,20 @@ function updateBirds() {
 			}
 		}
 
-		if (!drawMesssageList.includes(k)) {
-			if (b.message)
-				b.message.visible = false;
-		}
+		// if (!drawMesssageList.includes(k)) {
+		// 	if (b.message)
+		// 		b.message.visible = false;
+		// }
+
+		Birds[k].drawMessage();
 	}
 
 	if (drawMesssageList.length > 0) {
 		// draw other birds messages if in range
 		for (let i = 0; i < drawMesssageList.length; i++) {
 			const j = drawMesssageList[i];
-			Birds[j].drawMessage();
-			if (!Birds[j].isMoving) {
-				Birds[j].animate( 'sing' );
-			}
+			// Birds[j].drawMessage();
+			if (!Birds[j].isMoving) Birds[j].animate( 'sing' );
 		}
 	}
 }
@@ -445,6 +445,69 @@ function animate() {
 	}
 }
 
+function moveBird() {
+	if (useSound) {
+		tapSound.currentTime = Cool.random(tapSound.duration);
+		tapSound.play();
+		setTimeout(() => { tapSound.pause(); }, 800);
+	}
+
+	const bird = Birds[userId].bird;
+
+	if (!Birds[userId].isMoving) {
+		const cameraDirection = camera.getWorldDirection( cameraDirectionVector );
+		socket.emit( 'move', cameraDirection, jumpDistance )
+	}
+}
+
+function sceneManager( click, y ) {
+
+	// move bird
+	if ( state == 'game' && click ) {
+		moveBird();
+	}
+	
+	/* intro scenes */
+	if (state == 'join') {
+		uiCanvas.style.display = 'none';
+		uiLines.isPlaying = false;
+		state = 'game';
+		animate();
+		renderer.domElement.style.display = 'block';
+	}
+
+	if (state == 'sound') {
+		if (y < uiCanvas.clientHeight / 2) {
+			bgMusic.play();
+			useSound = true;
+		}
+		uiLines.loadAnimation( '/public/ui/draw.json', () => {
+			state = 'draw-instructions';
+		});
+	}
+
+	if (state == 'draw-instructions') {
+		uiLines.loadAnimation( '/public/ui/save.json', () => {
+			state = 'draw';
+			drawCanvas.style.display = 'block';
+			drawLines.setup();
+			drawLines.start();
+		});
+	}
+
+	if (state == 'draw') {
+		if (y < 50) {
+			const drawing = drawLines.save();
+			socket.emit( 'add drawing', drawing );
+			drawCanvas.style.display = 'none';
+			drawLines.end();
+			uiLines.loadAnimation( '/public/ui/join.json', () => {
+				state = 'join';
+			});
+		}
+	}
+}
+
 function socketEvents() {
 	socket.on( 'add bird', bird => {
 		// console.log( 'add', bird.id );
@@ -473,85 +536,52 @@ function socketEvents() {
 /* events */
 function tapStart( event ) {
 
-	lastTouch = event.touches[0];
-
-	if (state == 'game') {
-		if (useSound) {
-			tapSound.currentTime = Cool.random(tapSound.duration);
-			tapSound.play();
-			setTimeout(() => { tapSound.pause(); }, 800);
-		}
-
-		const bird = Birds[userId].bird;
-
-		if (!Birds[userId].isMoving) {
-			const cameraDirection = camera.getWorldDirection( cameraDirectionVector );
-			socket.emit( 'move', cameraDirection, jumpDistance )
-		}
-	}
+	// event.preventDefault();
+	touch.start.x = event.touches[0].clientX;
+	touch.start.y = event.touches[0].clientY;
+	touch.move.x = event.touches[0].clientX;
+	touch.move.y = event.touches[0].clientY;
 }
 
 function tapEnd( event ) {
-	
-	/* intro scenes */
-	if (state == 'join') {
-		uiCanvas.style.display = 'none';
-		uiLines.isPlaying = false;
-		state = 'game';
-		animate();
-		renderer.domElement.style.display = 'block';
-	}
 
-	if (state == 'fullscreen') {
-		if (lastTouch.clientY < height / 2) {
-			fullscreen();
-		}
-		uiLines.loadAnimation( '/public/ui/join.json', () => {
-			state = 'join';
-		});
-	}
+	const delta = {
+		x: touch.move.x - touch.start.x,
+		y: touch.move.y - touch.start.y
+	};
 
-	if (state == 'sound') {
-		if (lastTouch.clientY < height / 2) {
-			bgMusic.play();
-			useSound = true;
-		}
-		uiLines.loadAnimation( '/public/ui/draw.json', () => {
-			state = 'draw-instructions';
-		});
-	}
-
-	if (state == 'draw-instructions') {
-		uiLines.loadAnimation( '/public/ui/save.json', () => {
-			state = 'draw';
-			drawCanvas.style.display = 'block';
-			drawLines.setup();
-			drawLines.start();
-		});
-	}
-
-	if (state == 'draw') {
-		if (lastTouch.clientY < 50) {
-			const drawing = drawLines.save();
-			socket.emit( 'add drawing', drawing );
-			drawCanvas.style.display = 'none';
-			drawLines.end();
-			if (renderer.domElement.requestFullscreen || renderer.domElement.msRequestFullscreen || renderer.domElement.mozRequestFullScreen || renderer.domElement.webkitRequestFullscreen) {
-					uiLines.loadAnimation( '/public/ui/fullscreen.json', () => {
-						state = 'fullscreen';
-					});
-			} else {
-				uiLines.loadAnimation( '/public/ui/join.json', () => {
-					state = 'join';
-				});
-			}
-		}
-	}
+	// lines game would be better for this
+	sceneManager( delta.x == 0 && delta.y == 0, touch.move.y );
 }
 
-let lastTouch;
+function touchMove( event ) {
+	event.preventDefault();
+
+	const delta = {
+		x: event.touches[0].clientX - touch.move.x,
+		y: event.touches[0].clientY - touch.move.y
+	};
+
+	touch.move.x = event.touches[0].clientX;
+	touch.move.y = event.touches[0].clientY;
+}
+
+const touch = {
+	start: { x: 0, y: 0},
+	move: { x: 0, y: 0 }
+};
 window.addEventListener('touchstart', tapStart);
 window.addEventListener('touchend', tapEnd);
+
+// destktop click 
+function setupDesktop() {
+	uiCanvas.addEventListener('click', event => {
+		sceneManager( true, event.offsetY );
+	});
+
+	renderer.domElement.addEventListener('click', moveBird);
+}
+
 
 /* boring */
 function onWindowResize() { 
@@ -565,24 +595,6 @@ function onWindowResize() {
 }
 window.addEventListener( 'resize', onWindowResize, false );
 
-function fullscreen() {
-	if (renderer.domElement.requestFullscreen) {
-		renderer.domElement.requestFullscreen();
-	} else if (renderer.domElement.msRequestFullscreen) {
-		renderer.domElement.msRequestFullscreen();
-	} else if (renderer.domElement.mozRequestFullScreen) {
-		renderer.domElement.mozRequestFullScreen();
-	} else if (renderer.domElement.webkitRequestFullscreen) {
-		renderer.domElement.webkitRequestFullscreen();
-	}
-}
-
-function exitFullscreen() {
-	document.exitFullscreen = document.exitFullscreen || document.mozCancelFullScreen || document.webkitExitFullscreen || document.msExitFullscreen;
-	if (document.exitFullscreen)
-		document.exitFullscreen();
-}
-
 /* debug */
 socket.on('get-eval', msg => {
 	console.log(msg);
@@ -594,10 +606,16 @@ function servLog(statement) {
 
 /* stop sound/site when leaving browser */
 document.addEventListener('visibilitychange', ev => {
-	location.reload(); // easier for now
+	// location.reload(); // easier for now
 	if (document.hidden && !bgMusic.paused) {
 		bgMusic.pause();
 	} else if (!document.hidden && bgMusic.paused) {
-		bgMusic.play();
+		if (useSound) bgMusic.play();
 	}
 });
+
+/*
+	try later - based on orbit controls?
+	https://stackoverflow.com/questions/35283320/three-js-rotate-camera-with-both-touch-and-device-orientation
+	device + touch
+*/

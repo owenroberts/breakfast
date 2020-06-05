@@ -5,7 +5,14 @@
  * W3C Device Orientation control (http://w3c.github.io/deviceorientation/spec-source-orientation.html)
  */
 
-THREE.DeviceOrientationControls = function ( object ) {
+import {
+	Euler,
+	MathUtils,
+	Quaternion,
+	Vector3
+} from "./three.module.js";
+
+var DeviceOrientationControls = function ( object, events ) {
 
 	var scope = this;
 
@@ -35,13 +42,13 @@ THREE.DeviceOrientationControls = function ( object ) {
 
 	var setObjectQuaternion = function () {
 
-		var zee = new THREE.Vector3( 0, 0, 1 );
+		var zee = new Vector3( 0, 0, 1 );
 
-		var euler = new THREE.Euler();
+		var euler = new Euler();
 
-		var q0 = new THREE.Quaternion();
+		var q0 = new Quaternion();
 
-		var q1 = new THREE.Quaternion( - Math.sqrt( 0.5 ), 0, 0, Math.sqrt( 0.5 ) ); // - PI/2 around the x-axis
+		var q1 = new Quaternion( - Math.sqrt( 0.5 ), 0, 0, Math.sqrt( 0.5 ) ); // - PI/2 around the x-axis
 
 		return function ( quaternion, alpha, beta, gamma, orient ) {
 
@@ -61,8 +68,32 @@ THREE.DeviceOrientationControls = function ( object ) {
 
 		onScreenOrientationChangeEvent(); // run once on load
 
-		window.addEventListener( 'orientationchange', onScreenOrientationChangeEvent, false );
-		window.addEventListener( 'deviceorientation', onDeviceOrientationChangeEvent, false );
+		// iOS 13+
+
+		if ( window.DeviceOrientationEvent !== undefined && typeof window.DeviceOrientationEvent.requestPermission === 'function' ) {
+
+			window.DeviceOrientationEvent.requestPermission().then( function ( response ) {
+
+				if ( response == 'granted' ) {
+					window.addEventListener( 'orientationchange', onScreenOrientationChangeEvent, false );
+					window.addEventListener( 'deviceorientation', onDeviceOrientationChangeEvent, false );
+					events.onControlsGranted();
+				} else {
+					events.onControlsDenied();
+				}
+
+			} ).catch( function ( error ) {
+				console.error( 'THREE.DeviceOrientationControls: Unable to use DeviceOrientation API:', error );
+				events.onControlsDenied();
+			} );
+
+		} else {
+
+			window.addEventListener( 'orientationchange', onScreenOrientationChangeEvent, false );
+			window.addEventListener( 'deviceorientation', onDeviceOrientationChangeEvent, false );
+			// onControlsGranted(); // android
+			events.onCheckDevice();
+		}
 
 		scope.enabled = true;
 
@@ -85,13 +116,13 @@ THREE.DeviceOrientationControls = function ( object ) {
 
 		if ( device ) {
 
-			var alpha = device.alpha ? THREE.Math.degToRad( device.alpha ) + scope.alphaOffset : 0; // Z
+			var alpha = device.alpha ? MathUtils.degToRad( device.alpha ) + scope.alphaOffset : 0; // Z
 
-			var beta = device.beta ? THREE.Math.degToRad( device.beta ) : 0; // X'
+			var beta = device.beta ? MathUtils.degToRad( device.beta ) : 0; // X'
 
-			var gamma = device.gamma ? THREE.Math.degToRad( device.gamma ) : 0; // Y''
+			var gamma = device.gamma ? MathUtils.degToRad( device.gamma ) : 0; // Y''
 
-			var orient = scope.screenOrientation ? THREE.Math.degToRad( scope.screenOrientation ) : 0; // O
+			var orient = scope.screenOrientation ? MathUtils.degToRad( scope.screenOrientation ) : 0; // O
 
 			setObjectQuaternion( scope.object.quaternion, alpha, beta, gamma, orient );
 
@@ -109,3 +140,5 @@ THREE.DeviceOrientationControls = function ( object ) {
 	this.connect();
 
 };
+
+export { DeviceOrientationControls };

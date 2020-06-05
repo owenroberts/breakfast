@@ -4,8 +4,9 @@ function LinesDraw(canvas, lineColor) {
 
 	this.canvas = canvas;
 	this.ctx = this.canvas.getContext('2d');
-	this.width = this.canvas.width = window.innerWidth;
-	this.height = this.canvas.height = window.innerWidth;
+	this.width = this.canvas.width = Math.min( 512, window.innerWidth );
+	this.height = this.canvas.height = Math.min( 512, window.innerWidth );
+
 
 	/* hard coded for now bc other options suck
 		bounding rect changes on mobile with drag
@@ -130,29 +131,25 @@ function LinesDraw(canvas, lineColor) {
 		self.lines.push(new Cool.Vector(x, y));
 	};
 
-	this.drawUpdate = function(ev) {
-		const touch = ev.touches[0];
+	this.drawUpdate = function(x, y) {
+		
 		if (performance.now() > self.drawInterval + self.drawTimer) {
 			self.drawTimer = performance.now();
-			if (self.isDrawing && touch)
+			if (self.isDrawing)
 				self.addLine(
-					Math.round(touch.clientX), 
-					Math.round(touch.clientY) - self.offset
+					Math.round(x), 
+					Math.round(y)
 				);
 		}
 	};
 
-	this.drawStart = function(ev) {
-		const touch = ev.touches[0];
-		const offset = touch.target.getBoundingClientRect();
-		if (touch) {
-			self.isDrawing = true;
-			self.drawTimer = performance.now();
-			self.addLine(
-				Math.round(touch.clientX), 
-				Math.round(touch.clientY) - self.offset
-			);
-		}
+	this.drawStart = function(x, y) {
+		self.isDrawing = true;
+		self.drawTimer = performance.now();
+		self.addLine(
+			Math.round(x), 
+			Math.round(y) 
+		);
 	};
 
 	this.drawEnd = function(ev) {
@@ -160,7 +157,25 @@ function LinesDraw(canvas, lineColor) {
 		self.lines.push("end");
 	};
 
-	this.canvas.addEventListener('touchstart', self.drawStart);
-	this.canvas.addEventListener('touchend', self.drawEnd);
-	this.canvas.addEventListener('touchmove', self.drawUpdate);
+	if (Cool.mobilecheck()) {
+		this.canvas.addEventListener('touchstart', event => {
+			const touch = event.touches[0];
+			// const offset = touch.target.getBoundingClientRect();
+			if (touch) self.drawStart(touch.clientX, touch.clientY - self.offset);
+		});
+		this.canvas.addEventListener('touchend', self.drawEnd);
+		this.canvas.addEventListener('touchmove', event => {
+			const touch = event.touches[0];
+			if (touch) self.drawUpdate(touch.clientX, touch.clientY - self.offset);
+		});
+	
+	} else {
+		this.canvas.addEventListener('mousedown', event => {
+			self.drawStart(event.offsetX, event.offsetY);
+		});
+		this.canvas.addEventListener('mouseup', self.drawEnd);
+		this.canvas.addEventListener('mousemove', event => {
+			self.drawUpdate(event.offsetX, event.offsetY)
+		});
+	}
 }	
