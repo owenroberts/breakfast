@@ -435,9 +435,11 @@ function animate() {
 
 		updateBirds();
 
-		camera.position.x = Birds[userId].bird.position.x;
-		camera.position.z = Birds[userId].bird.position.z + cameraOffset;
-
+		if (Birds[userId]) {
+			camera.position.x = Birds[userId].bird.position.x;
+			camera.position.z = Birds[userId].bird.position.z + cameraOffset;
+		}
+		
 		// renderer.render(scene, camera);
 		effect.render( scene, camera );
 		renderer.render( messageScene, camera );
