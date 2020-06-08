@@ -433,12 +433,18 @@ var DeviceOrientationControls = function ( object ) {
 
 	}();
 
-	var setupEvents = function() {
+	var setupEvents = function( permissionGranted ) {
+
+		if ( permissionGranted ) {
+			window.addEventListener( 'orientationchange', onScreenOrientationChangeEvent, false );
+			
+			window.addEventListener( 'deviceorientation', onDeviceOrientationChangeEvent, false );
+		}
+
 		window.addEventListener( 'resize', constrainObjectFOV, false );
-		window.addEventListener( 'orientationchange', onScreenOrientationChangeEvent, false );
-		window.addEventListener( 'deviceorientation', onDeviceOrientationChangeEvent, false );
 		window.addEventListener( 'mousedown', onDocumentMouseDown, false );
 		window.addEventListener( 'touchstart', onDocumentTouchStart, false );
+
 		freeze = false;
 	};
 
@@ -452,12 +458,7 @@ var DeviceOrientationControls = function ( object ) {
 
 			window.DeviceOrientationEvent.requestPermission().then( function ( response ) {
 
-				if ( response == 'granted' ) {
-					setupEvents();
-					// events.onControlsGranted();
-				} else {
-					// events.onControlsDenied();
-				}
+				setupEvents( response == 'granted' );
 
 			} ).catch( function ( error ) {
 				console.error( 'THREE.DeviceOrientationControls: Unable to use DeviceOrientation API:', error );
@@ -466,7 +467,7 @@ var DeviceOrientationControls = function ( object ) {
 
 		} else {
 
-			setupEvents();
+			setupEvents( false );
 			// onControlsGranted(); // android
 			// events.onCheckDevice();
 		}

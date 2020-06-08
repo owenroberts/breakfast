@@ -102,7 +102,6 @@ import * as THREE from './jsm/three.module.js';
 import { DeviceOrientationControls } from './jsm/DeviceOrientationControlsTouch.js';
 import { OutlineEffect } from './jsm/OutlineEffect.js';
 import { GLTFLoader } from './jsm/GLTFLoader.js';
-import { OrbitControls } from './jsm/OrbitControls.js';
 
 let camera, scene, renderer, controls;
 let cameraDirectionVector;
@@ -113,7 +112,13 @@ let downVector = new THREE.Vector3( 0, -5, 0 );
 
 
 uiLines.loadAnimation( '/public/ui/title.json' );
-init();
+
+// desktop
+if (!Cool.mobilecheck()) {
+	uiCanvas.addEventListener('click', event => {
+		sceneManager( true, event.offsetY );	
+	});
+}
 
 function init() {
 
@@ -479,6 +484,7 @@ function sceneManager( click, y ) {
 	}
 
 	if (state == 'sound') {
+		init(); // first user input
 		if (y < uiCanvas.clientHeight / 2) {
 			bgMusic.play();
 			useSound = true;
@@ -572,16 +578,13 @@ const touch = {
 	start: { x: 0, y: 0},
 	move: { x: 0, y: 0 }
 };
-window.addEventListener('touchstart', tapStart);
-window.addEventListener('touchend', tapEnd);
+window.addEventListener( 'touchstart', tapStart );
+window.addEventListener( 'touchend', tapEnd );
+window.addEventListener( 'touchmove', touchMove );
 
 // destktop click 
 function setupDesktop() {
-	uiCanvas.addEventListener('click', event => {
-		sceneManager( true, event.offsetY );
-	});
-
-	renderer.domElement.addEventListener('click', moveBird);
+	renderer.domElement.addEventListener( 'click', moveBird );
 }
 
 
